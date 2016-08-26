@@ -1,0 +1,16 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "sleep"
+        }
+    },
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "observation_fhir"
+        }
+    },
+    "id": "b47ec926-2b18-4012-9291-95e4cf9cee20",
+    "version": "5.2.0.0"
+}

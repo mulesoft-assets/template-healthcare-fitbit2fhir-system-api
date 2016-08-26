@@ -1,0 +1,32 @@
+{
+  "sleep-minutesAsleep": [
+    {
+      "dateTime": "2016-07-17",
+      "value": "660"
+    },
+    {
+      "dateTime": "2016-07-18",
+      "value": "510"
+    },
+    {
+      "dateTime": "2016-07-19",
+      "value": "542"
+    },
+    {
+      "dateTime": "2016-07-20",
+      "value": "620"
+    },
+    {
+      "dateTime": "2016-07-21",
+      "value": "540"
+    },
+    {
+      "dateTime": "2016-07-22",
+      "value": "584"
+    },
+    {
+      "dateTime": "2016-07-23",
+      "value": "614"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "dataType": "UNKNOWN",
+            "metaDataModelPropertiesManager": {
+                "properties": []
+            }
+        }
+    },
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "observation_fhir"
+        }
+    },
+    "id": "4af4dd1f-7205-4508-81cc-2aed03929aa5",
+    "version": "5.2.0.0"
+}

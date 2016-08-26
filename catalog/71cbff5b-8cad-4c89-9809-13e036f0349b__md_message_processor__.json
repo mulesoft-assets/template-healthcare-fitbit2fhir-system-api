@@ -1,0 +1,18 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "sleep"
+        }
+    },
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "dataType": "UNKNOWN",
+            "metaDataModelPropertiesManager": {
+                "properties": []
+            }
+        }
+    },
+    "id": "71cbff5b-8cad-4c89-9809-13e036f0349b",
+    "version": "5.2.0.0"
+}

@@ -1,0 +1,32 @@
+{
+  "activities-tracker-steps": [
+    {
+      "dateTime": "2016-07-17",
+      "value": "29931"
+    },
+    {
+      "dateTime": "2016-07-18",
+      "value": "27512"
+    },
+    {
+      "dateTime": "2016-07-19",
+      "value": "21654"
+    },
+    {
+      "dateTime": "2016-07-20",
+      "value": "25471"
+    },
+    {
+      "dateTime": "2016-07-21",
+      "value": "18241"
+    },
+    {
+      "dateTime": "2016-07-22",
+      "value": "26711"
+    },
+    {
+      "dateTime": "2016-07-23",
+      "value": "22677"
+    }
+  ]
+}
