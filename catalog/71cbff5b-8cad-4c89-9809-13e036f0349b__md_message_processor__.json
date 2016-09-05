@@ -6,12 +6,7 @@
         }
     },
     "outputMessageMetadata": {
-        "messagePayload": {
-            "dataType": "UNKNOWN",
-            "metaDataModelPropertiesManager": {
-                "properties": []
-            }
-        }
+        "messagePayload": {}
     },
     "id": "71cbff5b-8cad-4c89-9809-13e036f0349b",
     "version": "5.2.0.0"

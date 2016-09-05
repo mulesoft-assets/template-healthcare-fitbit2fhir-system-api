@@ -1,0 +1,113 @@
+#%RAML 1.0
+title: Healthcare FHIR System API
+version: v1
+baseUri: http://localhost:8081/api/
+mediaType: [application/xml+fhir, application/json+fhir]
+
+types:
+
+  #Primitives
+  id:                           !include dataTypes/primitives/id.raml
+  base64Binary:                 string
+  code:                         !include dataTypes/primitives/code.raml
+  date:                         !include dataTypes/primitives/date.raml
+  dateTime:                     !include dataTypes/primitives/dateTime.raml
+  decimal:                      !include dataTypes/primitives/decimal.raml
+  gender:                       !include dataTypes/primitives/gender.raml
+  instant:                      !include dataTypes/primitives/instant.raml
+  markdown:                     !include dataTypes/primitives/markdown.raml
+  ObservationRelationshipType:  !include dataTypes/primitives/ObservationRelationshipType.raml
+  EncounterState:               !include dataTypes/primitives/EncounterState.raml
+  ObservationCode:              !include dataTypes/primitives/ObservationCode.raml
+  ObservationStatus:            !include dataTypes/primitives/ObservationStatus.raml
+  positiveInt:                  !include dataTypes/primitives/positiveInt.raml
+  time:                         !include dataTypes/primitives/time.raml
+  UnitOfTime:                   !include dataTypes/primitives/UnitOfTime.raml
+  unsignedInt:                  !include dataTypes/primitives/unsignedInt.raml
+  uri:                          !include dataTypes/primitives/uri.raml
+  xhtml:                        !include dataTypes/primitives/markdown.raml
+
+  #Elements  
+  Address:                      !include dataTypes/elements/Address.raml
+  Age:                          Quantity
+  Annotation:                   !include dataTypes/elements/Annotation.raml
+  Attachment:                   !include dataTypes/elements/Attachment.raml
+  BackboneElement:              !include dataTypes/elements/BackboneElement.raml
+  Coding:                       !include dataTypes/elements/Coding.raml
+  CodeableConcept:              !include dataTypes/elements/CodeableConcept.raml
+  ContactPoint:                 !include dataTypes/elements/ContactPoint.raml
+  Duration:                     !include dataTypes/elements/Duration.raml
+  Element:                      !include dataTypes/elements/Element.raml
+  Extension:                    !include dataTypes/elements/Extension.raml
+  HumanName:                    !include dataTypes/elements/HumanName.raml
+  Identifier:                   !include dataTypes/elements/Identifier.raml
+  Meta:                         !include dataTypes/elements/Meta.raml
+  Narrative:                    !include dataTypes/elements/Narrative.raml
+  Period:                       !include dataTypes/elements/Reference.raml
+  Ratio:                        !include dataTypes/elements/Ratio.raml
+  Range:                        !include dataTypes/elements/Range.raml
+  Reference:                    !include dataTypes/elements/Reference.raml
+  SampledData:                  !include dataTypes/elements/SampledData.raml
+  Signature:                    !include dataTypes/elements/Signature.raml
+  SimpleQuantity:               Quantity
+  Timing:                       !include dataTypes/elements/Timing.raml
+  Quantity:                     !include dataTypes/elements/Quantity.raml
+ 
+  #Resources
+  Device:                       !include dataTypes/resources/Device.raml
+  DomainResource:               !include dataTypes/resources/DomainResource.raml
+  Observation:                  !include dataTypes/resources/Observation.raml
+  Resource:                     !include dataTypes/resources/Resource.raml
+
+  #Entries
+  DeviceEntry:                  !include dataTypes/entries/DeviceEntry.raml
+  Entry:                        !include dataTypes/entries/Entry.raml
+  ObservationEntry:             !include dataTypes/entries/ObservationEntry.raml
+      
+  #Bundles
+  Bundle:                       !include dataTypes/bundles/Bundle.raml  
+  DeviceBundle:                 !include dataTypes/bundles/DeviceBundle.raml
+  ObservationBundle:            !include dataTypes/bundles/ObservationBundle.raml
+      
+  #Fitbit
+  FitbitMessage:                !include dataTypes/fitbit/FitbitMessage.raml
+  FitbitLocation:               !include dataTypes/fitbit/FitbitLocation.raml
+  FitbitAuthorizedPatients:     !include dataTypes/fitbit/FitbitAuthorizedPatients.raml
+
+### API definition ###
+/Patient:
+  get:
+    responses: 
+      200:  
+        body: 
+          application/json:
+            type: FitbitAuthorizedPatients
+  /{id}:
+    /authorize:
+      get:
+        responses: 
+          200:  
+            body: 
+              application/json:
+                type: FitbitLocation
+    /unauthorize:
+      get:
+        responses: 
+          200:  
+            body: 
+              application/json:
+                type: FitbitMessage
+    /Observation:
+      get:
+        responses:
+          200:  
+            body: 
+              application/json:
+                type: ObservationBundle
+    /Device:
+      get:
+        responses: 
+          200:  
+            body: 
+              application/json:
+                type: DeviceBundle

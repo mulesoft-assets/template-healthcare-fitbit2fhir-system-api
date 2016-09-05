@@ -38,24 +38,25 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
        <http:basic-authentication username="${fitbit.client.id}" password="${fitbit.client.secret}"/>
    </http:request-config>
     
-    <apikit:config name="api-config" raml="healthcare-fitbit2fhir-system-api.raml" consoleEnabled="true" consolePath="console" doc:name="Router">
-        <apikit:flow-mapping resource="/patients/{patientIDType}/{patientID}/authorize" action="get" flow-ref="get:/patients/{patientIDType}/{patientID}/authorize:api-config"/>
-        <apikit:flow-mapping resource="/patients/{patientIDType}/{patientID}/unauthorize" action="get" flow-ref="get:/patients/{patientIDType}/{patientID}/unauthorize:api-config"/>
-        <apikit:flow-mapping resource="/patients/{patientIDType}/{patientID}/observations" action="get" flow-ref="get:/patients/{patientIDType}/{patientID}/observations:api-config"/>
-        <apikit:flow-mapping resource="/patients/{patientIDType}/{patientID}/devices" action="get" flow-ref="get:/patients/{patientIDType}/{patientID}/devices:api-config"/>
-        <apikit:flow-mapping resource="/patients" action="get" flow-ref="get:/patients:api-config"/>
+    <apikit:config name="api-config" raml="healthcare-system-api.raml" consoleEnabled="true" consolePath="console" doc:name="Router">
+        <apikit:flow-mapping resource="/Patient/{id}/authorize" action="get" flow-ref="get:/Patient/{id}/authorize:api-config"/>
+        <apikit:flow-mapping resource="/Patient/{id}/unauthorize" action="get" flow-ref="get:/Patient/{id}/unauthorize:api-config"/>
+        <apikit:flow-mapping resource="/Patient/{id}/Observation" action="get" flow-ref="get:/Patients/{id}/Observation:api-config"/>
+        <apikit:flow-mapping resource="/Patient/{id}/Device" action="get" flow-ref="get:/Patients/{id}/Device:api-config"/>
+        <apikit:flow-mapping resource="/Patient" action="get" flow-ref="get:/Patients:api-config"/>
+
     </apikit:config>
     
     <objectstore:config name="ObjectStore"  doc:name="ObjectStore" partition="generalpartition"/>
     <objectstore:config name="PatientObjectStore"   doc:name="ObjectStore: Configuration" partition="patientpartition"/>
-    <api-platform-gw:api id="${api.id}" apiName="${api.name}" version="${api.version}" flowRef="observationFlow" doc:name="API Autodiscovery" create="true"></api-platform-gw:api>
-    <flow name="observationFlow">
+    <api-platform-gw:api id="${api.id}" apiName="${api.name}" version="${api.version}" flowRef="mainFlow" doc:name="API Autodiscovery" create="true"></api-platform-gw:api>
+    <flow name="mainFlow">
         <http:listener config-ref="api-httpListenerConfig" path="/api/*" doc:name="HTTP"/>
         <apikit:router config-ref="api-config" doc:name="APIkit Router"/>
         <exception-strategy ref="api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy"/>
     </flow>
-    <flow name="get:/patients/{patientIDType}/{patientID}/authorize:api-config">
-        <set-variable variableName="patientID" value="#[message.inboundProperties.'http.uri.params'.patientID]" doc:name="Set patientID"/>
+    <flow name="get:/Patient/{id}/authorize:api-config">
+        <set-variable variableName="patientID" value="#[message.inboundProperties.'http.uri.params'.id]" doc:name="Set patientID"/>
         <logger message="Authorize patient: #[flowVars.patientID]" level="INFO" doc:name="Log Authorize patient"/>
         <objectstore:store config-ref="ObjectStore" key="patient_id" value-ref="#[flowVars.patientID]" overwrite="true" doc:name="Save Patient ID"/>
 
@@ -81,11 +82,12 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <http:request config-ref="api.fitbit.com" path="/oauth2/token" method="POST" doc:name="Get Access Tokens from Fitbit">
             <http:request-builder>
                 <http:header headerName="Content-Type" value="application/x-www-form-urlencoded"/>
+
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
         <logger message="Auth token response: #[payload]" level="INFO" doc:name="Log Auth token response"/>
-        <flow-ref name="saveTokens" doc:name="Call saveTokens"/>
+        <flow-ref name="saveTokens" doc:name="saveTokens"/>
         <flow-ref name="log-objectstores" doc:name="log-objectstores"/>
         <logger message="Saved tokens : #[payload]" level="INFO" doc:name="Log save tokens payload"/>
         <dw:transform-message doc:name="Create response JSON">
@@ -129,8 +131,8 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
             </processor-chain>
         </scatter-gather>
     </sub-flow>
-    <flow name="get:/patients/{patientIDType}/{patientID}/unauthorize:api-config">
-        <set-variable variableName="patientID" value="#[message.inboundProperties.'http.uri.params'.patientID]" doc:name="Set patientID"/>
+    <flow name="get:/Patient/{id}/unauthorize:api-config">
+        <set-variable variableName="patientID" value="#[message.inboundProperties.'http.uri.params'.id]" doc:name="Set patientID"/>
 
         <logger message="Unauthorize patient: #[flowVars.patientID]" level="INFO" doc:name="Log Unauthorize patient"/>
         <objectstore:contains config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" doc:name="Contains Access Token"/>
@@ -141,6 +143,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
                 <http:request config-ref="api.fitbit.com" path="/oauth2/revoke" method="POST" doc:name="Revoke Fitbit Token">
                     <http:request-builder>
                         <http:header headerName="Content-Type" value="application/x-www-form-urlencoded"/>
+
                     </http:request-builder>
                 </http:request>
                 <logger message="Fitbit Token Revoked" level="INFO" doc:name="Log Token Revoked"/>
@@ -173,7 +176,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <objectstore:remove config-ref="ObjectStore" key="user_id_#[flowVars.patientID]" ignoreNotExists="true" doc:name="Remove Fitbit User ID"/>
         <objectstore:remove config-ref="ObjectStore" key="tracker_id_#[flowVars.patientID]" ignoreNotExists="true" doc:name="Remove Tracker ID"/>
     </sub-flow>
-    <flow name="get:/patients/{patientIDType}/{patientID}/observations:api-config">
+    <flow name="get:/Patients/{id}/Observation:api-config">
         <logger message="Get FHIR Observations for patient" level="INFO" doc:name="Log get FHIR Observations"/>
         <objectstore:contains config-ref="ObjectStore" key="access_token_#[message.inboundProperties.'http.uri.params'.patientID]" doc:name="Contains Access Token"/>
         <choice doc:name="Contains Patient Access Token?">
@@ -183,11 +186,8 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
                     <dw:set-variable variableName="patientID"><![CDATA[%dw 1.0
 %output application/java
 ---
-inboundProperties.'http.uri.params'.patientID]]></dw:set-variable>
-                    <dw:set-variable variableName="patientIDType"><![CDATA[%dw 1.0
-%output application/java
----
-inboundProperties.'http.uri.params'.patientIDType]]></dw:set-variable>
+inboundProperties.'http.uri.params'.id]]></dw:set-variable>
+
                     <dw:set-variable variableName="baseDate"><![CDATA[%dw 1.0
 %output application/java
 %var dateParam = inboundProperties."http.query.params".date
@@ -240,6 +240,7 @@ flowVars.sleepFhirData]]></dw:set-payload>
         	<http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
 
+
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
@@ -264,7 +265,7 @@ payload]]></dw:set-payload>
 payload.activities-tracker-steps map {
 	"resourceType": "Observation",
 	"subject": {
-	  "reference": ["patients", flowVars.patientIDType, flowVars.patientID] joinBy "/"
+	  "reference": ["Patient", flowVars.patientID] joinBy "/"
 	},
 	("device": {
 		"reference": ["Device", flowVars.trackerId] joinBy "/"
@@ -297,6 +298,7 @@ payload.activities-tracker-steps map {
         <http:request config-ref="api.fitbit.com" path="#[flowVars.sleep_URL]" method="GET" doc:name="Request sleep data">
             <http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
+
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
@@ -321,7 +323,7 @@ payload]]></dw:set-payload>
 payload.sleep-minutesAsleep map {	
 	"resourceType": "Observation",
 	"subject": {
-		"reference": ["patients", flowVars.patientIDType, flowVars.patientID] joinBy "/"
+		"reference": ["Patient", flowVars.patientID] joinBy "/"
 	},
 	("device": {
 		"reference": ["Device", flowVars.trackerId] joinBy "/"
@@ -346,7 +348,7 @@ payload.sleep-minutesAsleep map {
     </sub-flow>
 
 
-    <flow name="get:/patients/{patientIDType}/{patientID}/devices:api-config">
+    <flow name="get:/Patients/{id}/Device:api-config">
         <logger message="Get FHIR Devices for Patient" level="INFO" doc:name="Log get FHIR Devices"/>
         <objectstore:contains config-ref="ObjectStore" key="access_token_#[message.inboundProperties.'http.uri.params'.patientID]" doc:name="Contains Access Token"/>
         <choice doc:name="Contains Patient Access Token?">
@@ -355,11 +357,8 @@ payload.sleep-minutesAsleep map {
                     <dw:set-variable variableName="patientID"><![CDATA[%dw 1.0
 %output application/java
 ---
-inboundProperties.'http.uri.params'.patientID]]></dw:set-variable>
-                    <dw:set-variable variableName="patientIDType"><![CDATA[%dw 1.0
-%output application/java
----
-inboundProperties.'http.uri.params'.patientIDType]]></dw:set-variable>
+inboundProperties.'http.uri.params'.id]]></dw:set-variable>
+
 
                 </dw:transform-message>
                 <flow-ref name="fitbit-devices-subflow" doc:name="fitbit-devices-subflow"/>
@@ -387,6 +386,7 @@ inboundProperties.'http.uri.params'.patientIDType]]></dw:set-variable>
         <http:request config-ref="api.fitbit.com" path="#[flowVars.devices_URL]" method="GET" doc:name="Request devices data">
             <http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
+
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
@@ -430,7 +430,7 @@ payload map {
 	"resourceType": "Device",
 	"id": $.id,
 	"patient": {
-	  "reference": ["patients", flowVars.patientIDType, flowVars.patientID] joinBy "/"
+	  "reference": ["Patient", flowVars.patientID] joinBy "/"
 	},
 	"manufacturer": "Fitbit, Inc.",
 	"model": $.deviceVersion,
@@ -444,7 +444,7 @@ payload map {
 }]]></dw:set-payload>
         </dw:transform-message>
     </sub-flow>
-    <flow name="get:/patients:api-config">
+    <flow name="get:/Patients:api-config">
         <logger message="Get list of authorized patients" level="INFO" doc:name="Log get patients"/>
         <objectstore:all-keys config-ref="PatientObjectStore" doc:name="Get authorized patients"/>
         <dw:transform-message doc:name="Create response JSON">
@@ -478,10 +478,11 @@ payload map {
             <http:request config-ref="api.fitbit.com" path="/oauth2/token" method="POST" doc:name="Refresh Token with Fitbit">
                 <http:request-builder>
                     <http:header headerName="Content-Type" value="application/x-www-form-urlencoded"/>
+
                 </http:request-builder>
             </http:request>
             <byte-array-to-string-transformer doc:name="Byte Array to String"/>
-            <flow-ref name="saveTokens" doc:name="Call saveTokens"/>
+            <flow-ref name="saveTokens" doc:name="saveTokens"/>
         </foreach>
     </flow>
 
