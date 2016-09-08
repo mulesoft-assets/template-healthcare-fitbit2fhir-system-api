@@ -34,15 +34,15 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         </tls:context>
 	</http:listener-config>
     
-    <http:request-config name="api.fitbit.com" protocol="HTTPS" host="api.fitbit.com" port="443" doc:name="HTTP Request Configuration">
+    <http:request-config name="api.fitbit.com" protocol="HTTPS" host="api.fitbit.com" port="443" doc:name="HTTP Request Configuration" responseTimeout="-1">
        <http:basic-authentication username="${fitbit.client.id}" password="${fitbit.client.secret}"/>
    </http:request-config>
     
     <apikit:config name="api-config" raml="healthcare-system-api.raml" consoleEnabled="true" consolePath="console" doc:name="Router">
         <apikit:flow-mapping resource="/Patient/{id}/authorize" action="get" flow-ref="get:/Patient/{id}/authorize:api-config"/>
         <apikit:flow-mapping resource="/Patient/{id}/unauthorize" action="get" flow-ref="get:/Patient/{id}/unauthorize:api-config"/>
-        <apikit:flow-mapping resource="/Patient/{id}/Observation" action="get" flow-ref="get:/Patients/{id}/Observation:api-config"/>
-        <apikit:flow-mapping resource="/Patient/{id}/Device" action="get" flow-ref="get:/Patients/{id}/Device:api-config"/>
+        <apikit:flow-mapping resource="/Patient/{id}/Observation" action="get" flow-ref="get:/Patient/{id}/Observation:api-config"/>
+        <apikit:flow-mapping resource="/Patient/{id}/Device" action="get" flow-ref="get:/Patient/{id}/Device:api-config"/>
         <apikit:flow-mapping resource="/Patient" action="get" flow-ref="get:/Patients:api-config"/>
 
     </apikit:config>
@@ -79,12 +79,14 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <logger message="Callback at #[server.dateTime.toString()] - Access Code: #[flowVars.accessCode]" level="INFO" doc:name="Log Callback"/>
         <set-payload value="client_id=${fitbit.client.id}&amp;grant_type=authorization_code&amp;redirect_uri=${fitbit.redirect.uri}&amp;code=#[flowVars.accessCode]" doc:name="Set Payload for Getting Access Tokens from Fitbit"/>
         <objectstore:retrieve config-ref="ObjectStore" key="patient_id" targetProperty="patient_id" doc:name="Retrieve Patient ID"/>
+
         <http:request config-ref="api.fitbit.com" path="/oauth2/token" method="POST" doc:name="Get Access Tokens from Fitbit">
             <http:request-builder>
                 <http:header headerName="Content-Type" value="application/x-www-form-urlencoded"/>
 
             </http:request-builder>
         </http:request>
+
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
         <logger message="Auth token response: #[payload]" level="INFO" doc:name="Log Auth token response"/>
         <flow-ref name="saveTokens" doc:name="saveTokens"/>
@@ -176,9 +178,9 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <objectstore:remove config-ref="ObjectStore" key="user_id_#[flowVars.patientID]" ignoreNotExists="true" doc:name="Remove Fitbit User ID"/>
         <objectstore:remove config-ref="ObjectStore" key="tracker_id_#[flowVars.patientID]" ignoreNotExists="true" doc:name="Remove Tracker ID"/>
     </sub-flow>
-    <flow name="get:/Patients/{id}/Observation:api-config">
+    <flow name="get:/Patient/{id}/Observation:api-config">
         <logger message="Get FHIR Observations for patient" level="INFO" doc:name="Log get FHIR Observations"/>
-        <objectstore:contains config-ref="ObjectStore" key="access_token_#[message.inboundProperties.'http.uri.params'.patientID]" doc:name="Contains Access Token"/>
+        <objectstore:contains config-ref="ObjectStore" key="access_token_#[message.inboundProperties.'http.uri.params'.id]" doc:name="Contains Access Token"/>
         <choice doc:name="Contains Patient Access Token?">
             <when expression="#[payload == true]">
 
@@ -212,9 +214,19 @@ inboundProperties."http.query.params".date[2..-1]]]></dw:set-variable>
                     <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
 ---
-flowVars.activityFhirData
-++
-flowVars.sleepFhirData]]></dw:set-payload>
+using (obs = (flowVars.activityFhirData ++ flowVars.sleepFhirData)){
+	resourceType: "Bundle",
+	type: "searchset",
+	link: [{
+		relation: "self",
+		url: p('baseUri') ++ "Patient/" ++ flowVars.patientID ++ "/Observation"
+	}],
+	meta: {
+		lastUpdated: now
+	},
+	total: sizeOf obs,
+	entry: obs when ((sizeOf obs) > 0) otherwise []
+}]]></dw:set-payload>
                 </dw:transform-message>
             </when>
             <otherwise>
@@ -241,6 +253,7 @@ flowVars.sleepFhirData]]></dw:set-payload>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
 
 
+
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
@@ -263,27 +276,35 @@ payload]]></dw:set-payload>
 %output application/json
 ---
 payload.activities-tracker-steps map {
-	"resourceType": "Observation",
-	"subject": {
-	  "reference": ["Patient", flowVars.patientID] joinBy "/"
-	},
-	("device": {
-		"reference": ["Device", flowVars.trackerId] joinBy "/"
-	}) when flowVars.trackerId != "",
-	"effectiveDateTime": $.dateTime,
-	"code": {
-	  "coding": [
-	    {
-	      "system": "https://rtmms.nist.gov",
-	      "code": "8454247",
-	      "display": "MDC_HF_DISTANCE"
-	    }
-	  ]
-	},
-	"valueQuantity": {
-	    "value": $.value,
-	    "unit": "MDC_DIM_STEP"
-  	}
+	fullUrl: p('baseUri') ++ "/Observation/noId",
+	resource: {
+		"resourceType": "Observation",
+		"subject": {
+		  "reference": ["Patient", flowVars.patientID] joinBy "/"
+		},		
+		"text": {
+			"status": "empty",
+			"div": ""
+		},
+		("device": {
+			"reference": ["Device", flowVars.trackerId] joinBy "/"
+		}) when flowVars.trackerId != "",
+		"effectiveDateTime": $.dateTime,
+		"status": "final",
+		"code": {
+		  "coding": [
+		    {
+		      "system": "https://rtmms.nist.gov",
+		      "code": "8454247",
+		      "display": "MDC_HF_DISTANCE"
+		    }
+		  ]
+		},
+		"valueQuantity": {
+		    "value": $.value,
+		    "unit": "MDC_DIM_STEP"
+	  	}
+	}
 }]]></dw:set-payload>
         </dw:transform-message>
         <object-to-string-transformer doc:name="Object to String"/>
@@ -298,6 +319,7 @@ payload.activities-tracker-steps map {
         <http:request config-ref="api.fitbit.com" path="#[flowVars.sleep_URL]" method="GET" doc:name="Request sleep data">
             <http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
+
 
             </http:request-builder>
         </http:request>
@@ -320,27 +342,35 @@ payload]]></dw:set-payload>
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
 ---
-payload.sleep-minutesAsleep map {	
-	"resourceType": "Observation",
-	"subject": {
-		"reference": ["Patient", flowVars.patientID] joinBy "/"
-	},
-	("device": {
-		"reference": ["Device", flowVars.trackerId] joinBy "/"
-	}) when flowVars.trackerId != "",
-	"effectiveDateTime": $.dateTime,
-	"code": {
-		"coding": [
-	    {
-			"system": "https://rtmms.nist.gov",
-			"code": "8455148",
-			"display": "MDC_HF_ACT_SLEEP"
+payload.sleep-minutesAsleep map {
+	fullUrl: p('baseUri') ++ "/Observation/noId",
+	resource: {	
+		"resourceType": "Observation",
+		"subject": {
+			"reference": ["Patient", flowVars.patientID] joinBy "/"
+		},		
+		"text": {
+        	"status": "empty",
+        	"div": ""
+    	},
+		("device": {
+			"reference": ["Device", flowVars.trackerId] joinBy "/"
+		}) when flowVars.trackerId != "",
+		"effectiveDateTime": $.dateTime,
+		"status": "final",
+		"code": {
+			"coding": [
+		    {
+				"system": "https://rtmms.nist.gov",
+				"code": "8455148",
+				"display": "MDC_HF_ACT_SLEEP"
+			}
+		  ]
+		},
+		"valueQuantity": {
+			"value": $.value,
+			"unit": "MDC_DIM_MIN"
 		}
-	  ]
-	},
-	"valueQuantity": {
-		"value": $.value,
-		"unit": "MDC_DIM_MIN"
 	}
 }]]></dw:set-payload>
         </dw:transform-message>
@@ -348,9 +378,9 @@ payload.sleep-minutesAsleep map {
     </sub-flow>
 
 
-    <flow name="get:/Patients/{id}/Device:api-config">
+    <flow name="get:/Patient/{id}/Device:api-config">
         <logger message="Get FHIR Devices for Patient" level="INFO" doc:name="Log get FHIR Devices"/>
-        <objectstore:contains config-ref="ObjectStore" key="access_token_#[message.inboundProperties.'http.uri.params'.patientID]" doc:name="Contains Access Token"/>
+        <objectstore:contains config-ref="ObjectStore" key="access_token_#[message.inboundProperties.'http.uri.params'.id]" doc:name="Contains Access Token"/>
         <choice doc:name="Contains Patient Access Token?">
             <when expression="#[payload == true]">
                 <dw:transform-message doc:name="Prepare variables">
@@ -382,10 +412,11 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
         <objectstore:retrieve config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" defaultValue-ref="#[null]" targetProperty="accessToken" doc:name="Retrieve accessToken"/>
         <objectstore:retrieve config-ref="ObjectStore" key="user_id_#[flowVars.patientID]" defaultValue-ref="#[null]" targetProperty="userId" doc:name="Retrieve userId"/>
         <set-variable variableName="devices_URL" value="/1/user/#[flowVars.userId]/devices.json" doc:name="Set URL for Devices"/>
-        <logger message="Fitbit URL Devices : #[flowVars.devices_URL]" level="INFO" doc:name="Log Fitbit URL Devices"/>
+        <logger message="Fitbit URL Devices : #[flowVars.devices_URL] -- acces_token:  #[flowVars.accessToken]" level="INFO" doc:name="Log Fitbit URL Devices"/>
         <http:request config-ref="api.fitbit.com" path="#[flowVars.devices_URL]" method="GET" doc:name="Request devices data">
             <http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
+
 
             </http:request-builder>
         </http:request>
@@ -399,6 +430,10 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
     {
         "battery": "High",
         "deviceVersion": "Charge HR",
+        "identifier": [
+    	{
+      		"value": "27072629"
+    	}],
         "id": "27072629",
         "lastSyncTime": "2015-07-27T17:01:39.313",
         "type": "TRACKER"
@@ -406,11 +441,16 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
     {
         "battery": "High",
         "deviceVersion": "Aria",
+        "identifier": [
+    	{
+      		"value": "Y1PFEJZGGX8QFYTV"
+    	}],
         "id": "Y1PFEJZGGX8QFYTV",
         "lastSyncTime": "2015-07-27T07:14:34.000",
         "type": "SCALE"
     }
 ]]]></dw:set-payload>
+
         </dw:transform-message>
         <dw:transform-message doc:name="Set Tracker ID to variable">
             <dw:input-payload doc:sample="sample_data\devices.dwl"/>
@@ -426,21 +466,45 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
 ---
-payload map {
-	"resourceType": "Device",
-	"id": $.id,
-	"patient": {
-	  "reference": ["Patient", flowVars.patientID] joinBy "/"
+{
+	resourceType: "Bundle",
+	type: "searchset",
+	link: [{
+		relation: "self",
+		url: p('baseUri') ++ "Patient/" ++ flowVars.patientID ++ "/Device"
+	}],
+	meta: {
+		lastUpdated: now
 	},
-	"manufacturer": "Fitbit, Inc.",
-	"model": $.deviceVersion,
-	"type": {
-    	"text": $.type
-  	},
-  	"contact": [{
-		"system": "other",
-		"value": "https://www.fitbit.com/"
-    }]
+	total: sizeOf payload,
+	entry: payload map 
+		{
+			fullUrl: p('baseUri') ++ "/Device/" ++ $.id,
+			resource: {
+				"resourceType": "Device",
+				"id": $.id,
+				"patient": {
+				  "reference": ["Patient", flowVars.patientID] joinBy "/"
+				},
+				"text": {
+        			"status": "empty",
+        			"div": ""
+    			},
+				("identifier": ($.identifier map 
+			    {
+			      	"value": $.value
+			    })) when ($.identifier != null),
+				"manufacturer": "Fitbit, Inc.",
+				"model": $.deviceVersion,
+				"type": {
+			    	"text": $.type
+			  	},
+			  	"contact": [{
+					"system": "other",
+					"value": "https://www.fitbit.com/"
+			    }]
+			}
+	} when ((sizeOf payload) > 0) otherwise []
 }]]></dw:set-payload>
         </dw:transform-message>
     </sub-flow>
