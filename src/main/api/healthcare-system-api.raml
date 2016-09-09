@@ -73,6 +73,7 @@ types:
   FitbitMessage:                !include dataTypes/fitbit/FitbitMessage.raml
   FitbitLocation:               !include dataTypes/fitbit/FitbitLocation.raml
   FitbitAuthorizedPatients:     !include dataTypes/fitbit/FitbitAuthorizedPatients.raml
+  FitbitPatientAuthorizationInfo: !include dataTypes/fitbit/FitbitPatientAuthorizationInfo.raml
 
 ### API definition ###
 /Patient:
@@ -84,10 +85,17 @@ types:
           application/json:
             type: FitbitAuthorizedPatients
   /{id}:
+    displayName: Get Authorization info about Patient
     uriParameters:
       id:
         type: string|integer
         description: Patient ID
+    get:
+      responses: 
+        200:  
+          body: 
+            application/json:
+              type: FitbitPatientAuthorizationInfo
     /authorize:
       displayName: Authorize Fitbit user
       get:

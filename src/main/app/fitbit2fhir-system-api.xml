@@ -43,7 +43,9 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <apikit:flow-mapping resource="/Patient/{id}/unauthorize" action="get" flow-ref="get:/Patient/{id}/unauthorize:api-config"/>
         <apikit:flow-mapping resource="/Patient/{id}/Observation" action="get" flow-ref="get:/Patient/{id}/Observation:api-config"/>
         <apikit:flow-mapping resource="/Patient/{id}/Device" action="get" flow-ref="get:/Patient/{id}/Device:api-config"/>
-        <apikit:flow-mapping resource="/Patient" action="get" flow-ref="get:/Patients:api-config"/>
+        <apikit:flow-mapping resource="/Patient" action="get" flow-ref="get:/Patient:api-config"/>
+        <apikit:flow-mapping resource="/Patient/{id}" action="get" flow-ref="get:/Patient/{id}:api-config"/>
+
 
     </apikit:config>
     
@@ -508,7 +510,7 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
 }]]></dw:set-payload>
         </dw:transform-message>
     </sub-flow>
-    <flow name="get:/Patients:api-config">
+    <flow name="get:/Patient:api-config">
         <logger message="Get list of authorized patients" level="INFO" doc:name="Log get patients"/>
         <objectstore:all-keys config-ref="PatientObjectStore" doc:name="Get authorized patients"/>
         <dw:transform-message doc:name="Create response JSON">
@@ -519,6 +521,18 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
 	"patients": payload
 }]]></dw:set-payload>
         </dw:transform-message>
+    </flow>
+    <flow name="get:/Patient/{id}:api-config">
+        <objectstore:contains config-ref="PatientObjectStore" key="#[flowVars.id]" doc:name="Check if Patient is authorized"/>
+        <dw:transform-message doc:name="Prepare JSON response">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	"isAuthorized" : payload
+}]]></dw:set-payload>
+        </dw:transform-message>
+
     </flow>
     <sub-flow name="log-objectstores">
         <objectstore:all-keys config-ref="PatientObjectStore" doc:name="PatientObjectStore"></objectstore:all-keys>
