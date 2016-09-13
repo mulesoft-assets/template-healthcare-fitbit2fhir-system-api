@@ -27,11 +27,13 @@ http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/jso
 http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
 	<context:property-placeholder location="mule.${mule.env}.properties, common.properties" />
-	
+	<api-platform-gw:api id="${api.id}" apiName="${api.name}" version="${api.version}" flowRef="mainFlow" doc:name="API Autodiscovery" create="true" ></api-platform-gw:api>
+    
 	<http:listener-config name="api-httpListenerConfig" host="0.0.0.0" port="${https.port}" doc:name="HTTP Listener Configuration" protocol="HTTPS">
 		<tls:context>
             <tls:key-store type="jks" path="${keystore.location}" alias="${key.alias}" keyPassword="${key.password}" password="${keystore.password}"/>
         </tls:context>
+	
 	</http:listener-config>
     
     <http:request-config name="api.fitbit.com" protocol="HTTPS" host="api.fitbit.com" port="443" doc:name="HTTP Request Configuration" responseTimeout="-1">
@@ -205,7 +207,7 @@ inboundProperties."http.query.params".date[2..-1]]]></dw:set-variable>
 
                 </dw:transform-message>
                 <flow-ref name="fitbit-devices-subflow" doc:name="fitbit-devices-subflow"/>
-                <objectstore:retrieve config-ref="ObjectStore" key="tracker_id_#[flowVars.patientID]" targetProperty="trackerId" doc:name="Retrieve Tracker ID"/>
+                <objectstore:retrieve config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" targetProperty="trackerId" doc:name="Retrieve Tracker ID"/>
                 <enricher doc:name="Store activityFhirData" source="#[payload]" target="#[flowVars.activityFhirData]">
                     <flow-ref name="fitbit-activity-subflow" doc:name="fitbit-activity-subflow"/>
                 </enricher>
@@ -259,7 +261,7 @@ using (obs = (flowVars.activityFhirData ++ flowVars.sleepFhirData)){
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
-        <logger message="Daily activity data: #[payload]" level="INFO" doc:name="Log Daily activity data"/>
+        <logger message="Daily activity data: #[payload] with Device: #[flowVars.trackerId]" level="INFO" doc:name="Log Daily activity data"/>
         <dw:transform-message doc:name="Transform JSON to Java object" metadata:id="c4ed7402-da97-43d6-aad6-47c3347dfbff">
             <dw:input-payload/>
             <dw:set-payload><![CDATA[%dw 1.0
@@ -326,7 +328,7 @@ payload.activities-tracker-steps map {
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
-        <logger message="Sleep Data: #[payload]" level="INFO" doc:name="Log Sleep data"/>
+        <logger message="Sleep Data: #[payload] with Device: #[flowVars.trackerId]" level="INFO" doc:name="Log Sleep data"/>
         <dw:transform-message doc:name="Transform JSON to Java object" metadata:id="71cbff5b-8cad-4c89-9809-13e036f0349b">
             <dw:input-payload/>
             <dw:set-payload><![CDATA[%dw 1.0
@@ -420,48 +422,25 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
 
 
+
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer doc:name="Byte Array to String"/>
         <logger message="Devices data: #[payload]" level="INFO" doc:name="Log Devices data"/>
-        <dw:transform-message doc:name="Transform JSON to Java object">
+
+        <dw:transform-message doc:name="Set Tracker ID to variable">
+            <dw:input-payload doc:sample="sample_data\devices.dwl"/>
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
-[
-    {
-        "battery": "High",
-        "deviceVersion": "Charge HR",
-        "identifier": [
-    	{
-      		"value": "27072629"
-    	}],
-        "id": "27072629",
-        "lastSyncTime": "2015-07-27T17:01:39.313",
-        "type": "TRACKER"
-    },
-    {
-        "battery": "High",
-        "deviceVersion": "Aria",
-        "identifier": [
-    	{
-      		"value": "Y1PFEJZGGX8QFYTV"
-    	}],
-        "id": "Y1PFEJZGGX8QFYTV",
-        "lastSyncTime": "2015-07-27T07:14:34.000",
-        "type": "SCALE"
-    }
-]]]></dw:set-payload>
-
-        </dw:transform-message>
-        <dw:transform-message doc:name="Set Tracker ID to variable">
-            <dw:input-payload doc:sample="sample_data\devices.dwl"/>
+payload]]></dw:set-payload>
             <dw:set-variable variableName="trackerId"><![CDATA[%dw 1.0
 %output application/java
 ---
 (payload filter $.type == "TRACKER").id default null]]></dw:set-variable>
         </dw:transform-message>
-        <objectstore:store config-ref="ObjectStore" key="tracker_id_#[flowVars.patientID]" value-ref="#[flowVars.trackerId == null || flowVars.trackerId.isEmpty() ? &quot;&quot; : flowVars.trackerId[0]]" overwrite="true" doc:name="Save Tracker ID from variable"/>
+        <logger message="trackerID: #[flowVars.trackerId] --- paylaod is: #[payload]" level="INFO" doc:name="Logger"/>
+        <objectstore:store config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" value-ref="#[flowVars.trackerId == null || flowVars.trackerId.isEmpty() ? &quot;&quot; : flowVars.trackerId[0]]" overwrite="true" doc:name="Save Tracker ID from variable"/>
 
         <dw:transform-message doc:name="Transform Devices data to FHIR">
             <dw:input-payload doc:sample="sample_data\devices.dwl"/>
