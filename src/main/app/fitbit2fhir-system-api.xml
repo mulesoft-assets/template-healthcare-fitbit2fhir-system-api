@@ -36,7 +36,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
 	
 	</http:listener-config>
     
-    <http:request-config name="api.fitbit.com" protocol="HTTPS" host="api.fitbit.com" port="443" doc:name="HTTP Request Configuration" responseTimeout="-1">
+    <http:request-config name="api.fitbit.com" protocol="HTTPS" host="${api.fitbit.host}" port="443" doc:name="HTTP Request Configuration" responseTimeout="-1">
        <http:basic-authentication username="${fitbit.client.id}" password="${fitbit.client.secret}"/>
    </http:request-config>
     
@@ -84,6 +84,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <http:request config-ref="api.fitbit.com" path="/oauth2/token" method="POST" doc:name="Get Access Tokens from Fitbit">
             <http:request-builder>
                 <http:header headerName="Content-Type" value="application/x-www-form-urlencoded"/>
+                <http:header headerName="Host" value="${api.fitbit.host}"/>
 
             </http:request-builder>
         </http:request>
@@ -146,6 +147,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
                 <http:request config-ref="api.fitbit.com" path="/oauth2/revoke" method="POST" doc:name="Revoke Fitbit Token">
                     <http:request-builder>
                         <http:header headerName="Content-Type" value="application/x-www-form-urlencoded"/>
+                        <http:header headerName="Host" value="${api.fitbit.host}"/>
 
                     </http:request-builder>
                 </http:request>
@@ -252,6 +254,7 @@ using (obs = (flowVars.activityFhirData ++ flowVars.sleepFhirData)){
         <http:request config-ref="api.fitbit.com" path="#[flowVars.activity_URL]" method="GET" doc:name="Reuest daily activity data">
         	<http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
+                <http:header headerName="Host" value="${api.fitbit.host}"/>
 
 
 
@@ -320,6 +323,7 @@ payload.activities-tracker-steps map {
         <http:request config-ref="api.fitbit.com" path="#[flowVars.sleep_URL]" method="GET" doc:name="Request sleep data">
             <http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
+                <http:header headerName="Host" value="${api.fitbit.host}"/>
 
 
             </http:request-builder>
@@ -417,6 +421,7 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
         <http:request config-ref="api.fitbit.com" path="#[flowVars.devices_URL]" method="GET" doc:name="Request devices data">
             <http:request-builder>
                 <http:header headerName="Authorization" value="Bearer #[flowVars.accessToken]"/>
+                <http:header headerName="Host" value="${api.fitbit.host}"/>
 
 
 
@@ -532,6 +537,7 @@ payload]]></dw:set-payload>
             <http:request config-ref="api.fitbit.com" path="/oauth2/token" method="POST" doc:name="Refresh Token with Fitbit">
                 <http:request-builder>
                     <http:header headerName="Content-Type" value="application/x-www-form-urlencoded"/>
+                    <http:header headerName="Host" value="${api.fitbit.host}"/>
 
                 </http:request-builder>
             </http:request>
