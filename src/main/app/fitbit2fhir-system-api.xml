@@ -72,10 +72,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
  	location: "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=${fitbit.client.id}&redirect_uri=${fitbit.redirect.uri}&scope=activity%20nutrition%20heartrate%20location%20nutrition%20profile%20settings%20sleep%20social%20weight&prompt=login"
  }]]></dw:set-payload>
          </dw:transform-message>
-
-<!--          <set-property propertyName="http.status" value="307" doc:name="HTTP status Property"/> -->
-<!--          <set-property propertyName="Location" value="https://www.fitbit.com/oauth2/authorize?response_type=code&amp;client_id=${fitbit.client.id}&amp;redirect_uri=${fitbit.redirect.uri}&amp;scope=activity%20nutrition%20heartrate%20location%20nutrition%20profile%20settings%20sleep%20social%20weight&amp;prompt=login" doc:name="Location Property"/> -->
-        
+   
     </flow>
     <flow name="fitbit-callback-get-tokens">
         <http:listener config-ref="api-httpListenerConfig" path="/fitbit/callback" doc:name="HTTP"/>
@@ -439,7 +436,7 @@ payload]]></dw:set-payload>
 ---
 (payload filter $.type == "TRACKER").id default null]]></dw:set-variable>
         </dw:transform-message>
-        <logger message="trackerID: #[flowVars.trackerId] --- paylaod is: #[payload]" level="INFO" doc:name="Logger"/>
+
         <objectstore:store config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" value-ref="#[flowVars.trackerId == null || flowVars.trackerId.isEmpty() ? &quot;&quot; : flowVars.trackerId[0]]" overwrite="true" doc:name="Save Tracker ID from variable"/>
 
         <dw:transform-message doc:name="Transform Devices data to FHIR">

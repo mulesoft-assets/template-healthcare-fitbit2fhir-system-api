@@ -3,5 +3,4 @@
     <name>template-healthcare-fitbit2fhir-system-api-1.3.0-SNAPSHOT</name>
     <description></description>
     <muleExtension name="APIkit" qualifier="org.mule.tooling.apikit.3.7.0"/>
-    <muleExtension name="ObjectStore" qualifier="org.mule.tooling.ui.contribution.objectstore.3.6.0"/>
 </mule-project>
