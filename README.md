@@ -2,9 +2,7 @@
 
 + [License Agreement](#licenseagreement)
 + [Use Case](#usecase)
-+ [
-+ 
-+ ](#considerations)
++ [Considerations](#considerations)
 	* [Cloudhub security considerations](#cloudhubsecurityconsiderations)
 	* [APIs security considerations](#apissecurityconsiderations)
 + [Run it!](#runit)
