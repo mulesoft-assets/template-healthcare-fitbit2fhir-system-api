@@ -108,7 +108,7 @@ In order to use this Mule Anypoint Template you need to configure properties (Cr
 + key.password `mule1234`
 + key.alias `alias`
 
-+ baseUri= `baseUri.of.your.app/api`
++ baseUri `baseUri.of.your.app/api`
 
 	**Note:** You should encode the redirect URI.
 + api.fitbit.host `api.fitbit.com`
