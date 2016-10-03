@@ -14,12 +14,12 @@ http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/jso
         <spring:import resource="classpath:fitbit2fhir-system-api.xml" />
     </spring:beans>
     <munit:config mock-connectors="false" mock-inbounds="false" doc:name="MUnit configuration"/>
-    <http:request-config name="HTTP_API_Request_Configuration" host="0.0.0.0" port="8082" basePath="/api" doc:name="HTTP API Request Configuration" protocol="HTTPS">
+    <http:request-config name="HTTP_API_Request_Configuration" host="0.0.0.0" port="${https.port}" basePath="/api" doc:name="HTTP API Request Configuration" protocol="HTTPS">
         <tls:context>
             <tls:trust-store path="${truststore.location}" password="${truststore.password}" type="jks"/>
         </tls:context>
     </http:request-config>
-    <http:request-config name="HTTP_Request_Configuration" host="0.0.0.0" port="8082" doc:name="HTTP Request Configuration" protocol="HTTPS">
+    <http:request-config name="HTTP_Request_Configuration" host="0.0.0.0" port="${https.port}" doc:name="HTTP Request Configuration" protocol="HTTPS">
     	<tls:context>
             <tls:trust-store path="${truststore.location}" password="${truststore.password}" type="jks"/>
         </tls:context>
