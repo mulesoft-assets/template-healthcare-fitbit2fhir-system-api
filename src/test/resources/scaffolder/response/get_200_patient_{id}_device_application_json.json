@@ -1,0 +1,40 @@
+{
+	resourceType: "Bundle",
+	type: "searchset",
+	link: [{
+		relation: "self",
+		url: https://localhost/api/Patient/123/Device"
+	}],
+	meta: {
+		lastUpdated: 2016-09-27T00:00:00.000Z
+	},
+	total: 1,
+	entry:
+		[{
+			fullUrl: https://localhost/api/Device/123456",
+			resource: {
+				"resourceType": "Device",
+				"id": "123456",
+				"patient": {
+				  "reference": "Patient/123"
+				},
+				"text": {
+        			"status": "empty",
+        			"div": ""
+    			},
+				"identifier":
+			    [{
+			      	"value": 789
+			    }],
+				"manufacturer": "Fitbit, Inc.",
+				"model": "Charge HR",
+				"type": {
+			    	"text": "TRACKER"
+			  	},
+			  	"contact": [{
+					"system": "other",
+					"value": "https://www.fitbit.com/"
+			    }]
+			}
+	}]
+}

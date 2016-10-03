@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:mock="http://www.mulesoft.org/schema/mule/mock" xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+http://www.mulesoft.org/schema/mule/mock http://www.mulesoft.org/schema/mule/mock/current/mule-mock.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/objectstore http://www.mulesoft.org/schema/mule/objectstore/current/mule-objectstore.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+    <spring:beans>
+        <spring:import resource="classpath:fitbit2fhir-system-api.xml" />
+    </spring:beans>
+    <munit:config mock-connectors="false" mock-inbounds="false" doc:name="MUnit configuration"/>
+    <http:request-config name="HTTP_API_Request_Configuration" host="0.0.0.0" port="8082" basePath="/api" doc:name="HTTP API Request Configuration" protocol="HTTPS">
+        <tls:context>
+            <tls:trust-store path="${truststore.location}" password="${truststore.password}" type="jks"/>
+        </tls:context>
+    </http:request-config>
+    <http:request-config name="HTTP_Request_Configuration" host="0.0.0.0" port="8082" doc:name="HTTP Request Configuration" protocol="HTTPS">
+    	<tls:context>
+            <tls:trust-store path="${truststore.location}" password="${truststore.password}" type="jks"/>
+        </tls:context>
+    </http:request-config>
+    <munit:test name="get:/Patient/id/authorize:healthcare-system-api-config-200-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id/authorize:healthcare-system-api-config-200-application/json]">
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Save Patient ID'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Save Patient ID']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="patient_id" doc:name="contains patient_id"/>
+                    <munit:assert-true message="ObjectStore should contain patient_id!" condition="#[payload]" doc:name="Assert True"/>
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <objectstore:remove config-ref="ObjectStore" key="patient_id" ignoreNotExists="true" doc:name="Remove patient_id if exists"/>
+        <dw:transform-message doc:name="Prepare variables">
+            <dw:set-variable variableName="id"><![CDATA[%dw 1.0
+%output application/java
+---
+"123"]]></dw:set-variable>
+            <dw:set-variable variableName="fitbitClientId"><![CDATA[%dw 1.0
+%output application/java
+---
+p('fitbit.client.id')]]></dw:set-variable>
+            <dw:set-variable variableName="fitbitRedirectUri"><![CDATA[%dw 1.0
+%output application/java
+---
+p('fitbit.redirect.uri')]]></dw:set-variable>
+        </dw:transform-message>
+
+        <http:request config-ref="HTTP_API_Request_Configuration" method="GET" path="/Patient/{id}/authorize" doc:name="HTTP">
+            <http:request-builder>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+
+            </http:request-builder>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string" />
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200" />
+        <enricher source="#[payload]" target="#[flowVars.expectedData]" doc:name="Store in expectedData variable">
+            <parse-template location="scaffolder\response\get_200_patient_{id}_authorize_application_json.json" doc:name="Replace variables in response template"/>
+        </enricher>
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[flowVars.expectedData.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" actualValue="#[payload.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" doc:name="assert that - payload is as expected" />
+
+    </munit:test>
+    
+    <munit:test name="get:/Patient/id/Device:healthcare-system-api-config-200-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id/Device:healthcare-system-api-config-200-application/json]">
+        <mock:when messageProcessor="mule:sub-flow" doc:name="Mock 'fitbit-devices-subflow'">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="#[matchContains('fitbit-devices-subflow')]"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('scaffolder/response/get_200_patient_{id}_device_application_json.json').asString()]"/>
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Prepare variables'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Prepare variables']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Patient ID should be stored in patientID variable!" expectedValue="#[flowVars.id]" actualValue="#[flowVars.patientID]" doc:name="Check patientID variable stored"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <set-variable variableName="id" value="#['123']" doc:name="id" />
+        <objectstore:store config-ref="ObjectStore" key="access_token_#[flowVars.id]" value-ref="#['1234abcd']" overwrite="true" doc:name="Store Access Token"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" method="GET" path="/Patient/{id}/Device" doc:name="HTTP">
+            <http:request-builder>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+
+            </http:request-builder>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string" />
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200" />
+
+    </munit:test>
+    <munit:test name="get:/Patient/id/Device:healthcare-system-api-config-401-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id/Device:healthcare-system-api-config-401-application/json]">
+        <set-variable variableName="id" value="#['123']" doc:name="id"/>
+        <objectstore:remove config-ref="ObjectStore" key="access_token_#[flowVars.id]" ignoreNotExists="true" doc:name="Remove Access Token"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" path="/Patient/{id}/Device" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+            </http:request-builder>
+            <http:success-status-code-validator values="401"/>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string"/>
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(401))]" doc:name="assert that - http.status eq 401"/>
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[getResource('scaffolder/response/get_401_patient_{id}_device_application_json.json').asString().replaceAll(&quot;\\s&quot;,&quot;&quot;)]" actualValue="#[payload.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" doc:name="assert that - payload is as expected"/>
+    </munit:test>
+    
+    <munit:test name="get:/Patient/id/Observation:healthcare-system-api-config-200-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id/Observation:healthcare-system-api-config-200-application/json]">
+        <mock:when messageProcessor="mule:sub-flow" doc:name="Mock 'fitbit-devices-subflow'">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="#[matchContains('fitbit-devices-subflow')]"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('scaffolder/response/get_200_patient_{id}_device_application_json.json').asString()]" mimeType="application/java"/>
+        </mock:when>
+        <mock:when messageProcessor="mule:sub-flow" doc:name="Mock 'fitbit-activity-subflow'">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="#[matchContains('fitbit-activity-subflow')]"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('scaffolder/response/get_200_patient_{id}_activity_application_json.json').asString()]" mimeType="application/java"/>
+        </mock:when>
+        <mock:when messageProcessor="mule:sub-flow" doc:name="Mock 'fitbit-sleep-subflow'">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="#[matchContains('fitbit-sleep-subflow')]"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('scaffolder/response/get_200_patient_{id}_sleep_application_json.json').asString()]" mimeType="application/java"/>
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Prepare variables'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Prepare variables']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Patient ID should be stored in patientID variable!" expectedValue="#['123']" actualValue="#[flowVars.patientID]" doc:name="Check patientID variable"/>
+                <munit:assert-on-equals message="Base date should be stored in baseDate variable!" expectedValue="#[&quot;2016-07-18&quot;]" actualValue="#[flowVars.baseDate]" doc:name="Check baseDate variable"/>
+                <munit:assert-on-equals message="End date should be stored in endDate variable!" expectedValue="#[&quot;2016-07-18&quot;]" actualValue="#[flowVars.endDate]" doc:name="Check endDate variable"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Retrieve Tracker ID'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Retrieve Tracker ID']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Tracker ID should be stored in trackerID variable!" expectedValue="#[&quot;123456789&quot;]" actualValue="#[flowVars.trackerId]" doc:name="Check trackerId variable"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <set-variable variableName="id" value="#['123']" doc:name="id"/>
+        <objectstore:store config-ref="ObjectStore" key="access_token_#[flowVars.id]" value-ref="#['1234abcd']" overwrite="true" doc:name="Store Access Token"/>
+        <objectstore:store config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" value-ref="#['123456789']" overwrite="true" doc:name="Store Tracker ID"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" path="/Patient/{id}/Observation" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-param paramName="date" value="#['eq2016-07-18']"/>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="http response to Java object">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+        </dw:transform-message>
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200"/>
+    </munit:test>
+	<munit:test name="get:/Patient/id/Observation:healthcare-system-api-config-401-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id/Observation:healthcare-system-api-config-401-application/json]">
+        <set-variable variableName="id" value="#['123']" doc:name="id"/>
+        <objectstore:remove config-ref="ObjectStore" key="access_token_#[flowVars.id]" ignoreNotExists="true" doc:name="Remove Access Token"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" path="/Patient/{id}/Observation" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-param paramName="date" value="#['eq2016-07-18']"/>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+            </http:request-builder>
+            <http:success-status-code-validator values="401"/>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string"/>
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(401))]" doc:name="assert that - http.status eq 401"/>
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[getResource('scaffolder/response/get_401_patient_{id}_observation_application_json.json').asString().replaceAll(&quot;\\s&quot;,&quot;&quot;)]" actualValue="#[payload.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" doc:name="assert that - payload is as expected"/>
+    </munit:test>
+    
+    <munit:test name="get:/Patient/id:healthcare-system-api-config-200-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id:healthcare-system-api-config-200-application/json]">
+        <set-variable variableName="id" value="#['123']" doc:name="id" />
+        <objectstore:store config-ref="PatientObjectStore" key="#[flowVars.id]" value-ref="#[flowVars.id]" overwrite="true" doc:name="Store patient"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" method="GET" path="/Patient/{id}" doc:name="HTTP">
+            <http:request-builder>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+
+            </http:request-builder>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string" />
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200" />
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[getResource('scaffolder/response/get_200_patient_{id}_application_json.json').asString().replaceAll(&quot;\\s&quot;,&quot;&quot;)]" actualValue="#[payload.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" doc:name="assert that - payload is as expected" />
+    </munit:test>
+    <munit:test name="get:/Patient:healthcare-system-api-config-200-application/json-FlowTest" description="Verifying functionality of [get:/Patient:healthcare-system-api-config-200-application/json]">
+        <set-variable variableName="patient_id" value="#['123']" doc:name="Set patient_id variable"/>
+        <objectstore:store config-ref="PatientObjectStore" key="#[flowVars.patient_id]" value-ref="#[flowVars.patient_id]" overwrite="true" doc:name="Store patient"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" method="GET" path="/Patient" doc:name="HTTP">
+            <http:request-builder>
+                <http:header headerName="Accept" value="application/json"/>
+
+            </http:request-builder>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string" />
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200" />
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[getResource('scaffolder/response/get_200_patient_application_json.json').asString().replaceAll(&quot;\\s&quot;,&quot;&quot;)]" actualValue="#[payload.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" doc:name="assert that - payload is as expected" />
+    </munit:test>
+    <munit:test name="get:/Patient/id/unauthorize:healthcare-system-api-config-200-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id/unauthorize:healthcare-system-api-config-200-application/json]">
+        <mock:when messageProcessor=".*:.*" doc:name="Mock 'Revoke Fitbit Token'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Revoke Fitbit Token']"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[]"/>
+        </mock:when>
+        <mock:when messageProcessor="mule:sub-flow" doc:name="Mock 'removePatientDetails'">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="#['removePatientDetails']"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[]"/>
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Set Payload For Revoking Fitbit Token'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Set Payload For Revoking Fitbit Token']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="The Revoke Fitbit Token payload is not correct!" expectedValue="token=#['1234abcd']" actualValue="#[payload]" doc:name="assert that - payload is as expected"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <set-variable variableName="id" value="#['123']" doc:name="id" />
+        <objectstore:store config-ref="ObjectStore" key="access_token_#[flowVars.id]" value-ref="#['1234abcd']" overwrite="true" doc:name="Store access token"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" method="GET" path="/Patient/{id}/unauthorize" doc:name="HTTP">
+            <http:request-builder>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+
+            </http:request-builder>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string" />
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200" />
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[getResource('scaffolder/response/get_200_patient_{id}_unauthorize_application_json.json').asString().replaceAll(&quot;\\s&quot;,&quot;&quot;)]" actualValue="#[payload.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" doc:name="assert that - payload is as expected" />
+    </munit:test>
+    <munit:test name="get:/Patient/id/unauthorize:healthcare-system-api-config-401-application/json-FlowTest" description="Verifying functionality of [get:/Patient/id/unauthorize:healthcare-system-api-config-401-application/json]">
+        <set-variable variableName="id" value="#['123']" doc:name="id"/>
+        <objectstore:remove config-ref="ObjectStore" key="access_token_#[flowVars.id]" ignoreNotExists="true" doc:name="Remove Access Token"/>
+        <http:request config-ref="HTTP_API_Request_Configuration" path="/Patient/{id}/unauthorize" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:uri-param paramName="id" value="#[flowVars.id]"/>
+                <http:header headerName="Accept" value="application/json"/>
+            </http:request-builder>
+            <http:success-status-code-validator values="401"/>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string"/>
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(401))]" doc:name="assert that - http.status eq 401"/>
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[getResource('scaffolder/response/get_401_patient_{id}_unauthorize_application_json.json').asString().replaceAll(&quot;\\s&quot;,&quot;&quot;)]" actualValue="#[payload.replaceAll(&quot;\\s&quot;,&quot;&quot;)]" doc:name="assert that - payload is as expected"/>
+    </munit:test>
+    <munit:test name="fitbit-callback-get-tokens-FlowTest" description="Verifying functionality of [fitbit-callback-get-tokens]">
+        <mock:when messageProcessor=".*:.*" doc:name="Mock 'Get Access Tokens from Fitbit'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Get Access Tokens from Fitbit']"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('test_data/refresh_token_response.json').asString()]" mimeType="application/json"/>
+        </mock:when>
+        <mock:when messageProcessor="mule:sub-flow" doc:name="Mock 'saveTokens'">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="#[matchContains('saveTokens')]"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('test_data/refresh_token_response.json').asString()]" mimeType="application/java"/>
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Set Payload for Getting Access Tokens from Fitbit'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Set Payload for Getting Access Tokens from Fitbit']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Payload not as expected!" expectedValue="client_id=${fitbit.client.id}&amp;grant_type=authorization_code&amp;redirect_uri=${fitbit.redirect.uri}&amp;code=98745" actualValue="#[payload]" doc:name="Check Payload for Getting Fitbit Access Token"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Retrieve Patient ID'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Retrieve Patient ID']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Patient ID not as expected!" expectedValue="#['123']" actualValue="#[flowVars.patient_id]" doc:name="Check Patient ID"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <set-variable variableName="patientID" value="#['123']" doc:name="Set patientID variable"/>
+        <objectstore:store config-ref="ObjectStore" key="patient_id" value-ref="#[flowVars.patientID]" overwrite="true" doc:name="Store Patient ID"/>
+        <set-variable variableName="access_code" value="#['98745']" doc:name="Set code variable"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="/fitbit/callback" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-param paramName="code" value="#[flowVars.access_code]"/>
+            </http:request-builder>
+        </http:request>
+        <object-to-string-transformer doc:name="http response to string"/>
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200"/>
+    </munit:test>
+    <munit:test name="saveTokens-SubFlowTest" description="Verifying functionality of [saveTokens]">
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Register Patient ID'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Register Patient ID']"/>
+            </mock:with-attributes>
+
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="PatientObjectStore" key="#[flowVars.patient_id]" doc:name="Contains Patient"/>
+                    <munit:assert-true message="Patient should be stored!" condition="#[payload]" doc:name="Assert True"/>
+
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Save Access Token'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Save Access Token']"/>
+            </mock:with-attributes>
+
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="access_token_#[flowVars.patient_id]" doc:name="Contains Access Token"/>
+                    <munit:assert-true message="Access Token should be stored!" condition="#[payload]" doc:name="Assert True"/>
+
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Save Refresh Token'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Save Refresh Token']"/>
+            </mock:with-attributes>
+
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="refresh_token_#[flowVars.patient_id]" doc:name="Contains Refresh Token"/>
+                    <munit:assert-true message="Refresh Token should be stored!" condition="#[payload]" doc:name="Assert True"/>
+
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Save Fitbit User ID'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Save Fitbit User ID']"/>
+            </mock:with-attributes>
+
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="user_id_#[flowVars.patient_id]" doc:name="Contains Fitbit User ID"/>
+                    <munit:assert-true message="Fitbit User ID should be stored!" condition="#[payload]" doc:name="Assert True"/>
+
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+
+        <set-variable variableName="patient_id" value="#['123']" doc:name="Set patientID variable"/>
+        <objectstore:remove config-ref="PatientObjectStore" key="#[flowVars.patient_id]"   doc:name="Remove Patient" ignoreNotExists="true"/>
+        <objectstore:remove config-ref="ObjectStore" key="access_token_#[flowVars.patient_id]"   doc:name="Remove Access Token" ignoreNotExists="true"/>
+        <objectstore:remove config-ref="ObjectStore" key="refresh_token_#[flowVars.patient_id]"   doc:name="Remove Refresh Token" ignoreNotExists="true"/>
+        <objectstore:remove config-ref="ObjectStore" key="user_id_#[flowVars.patient_id]"   doc:name="Remove Fitbit User ID" ignoreNotExists="true"/>
+        <set-payload value="#[getResource('test_data/refresh_token_response.json').asString()]" doc:name="Set Payload" mimeType="application/json"/>
+
+        <flow-ref name="saveTokens" doc:name="saveTokens"/>
+    </munit:test>
+    <munit:test name="removePatientDetails-SubFlowTest" description="Verifying functionality of [removePatientDetails]">
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Remove Patient'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Remove Patient']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="PatientObjectStore" key="#[flowVars.patientID]" doc:name="Contains Patient"/>
+                    <munit:assert-false message="Patient should not be stored!" condition="#[payload]" doc:name="Assert False"/>
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Remove Access Token'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Remove Access Token']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" doc:name="Contains Access Token"/>
+                    <munit:assert-false message="Access Token should not be stored!" condition="#[payload]" doc:name="Assert False"/>
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Remove Refresh Token'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Remove Refresh Token']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="refresh_token_#[flowVars.patientID]" doc:name="Contains Refresh Token"/>
+                    <munit:assert-false message="Refresh Token should not be stored!" condition="#[payload]" doc:name="Assert False"/>
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Remove Fitbit User ID'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Remove Fitbit User ID']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="user_id_#[flowVars.patientID]" doc:name="Contains Fitbit User ID"/>
+                    <munit:assert-false message="Fitbit User ID should not be stored!" condition="#[payload]" doc:name="Assert False"/>
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Remove Tracker ID'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Remove Tracker ID']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <processor-chain doc:name="Processor Chain">
+                    <objectstore:contains config-ref="ObjectStore" key="tracker_id_#[flowVars.patientID]" doc:name="Contains Tracker ID"/>
+                    <munit:assert-false message="Tracker ID should not be stored!" condition="#[payload]" doc:name="Assert False"/>
+                </processor-chain>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <set-variable variableName="patientID" value="#['123']" doc:name="Set patientID variable"/>
+        <objectstore:store config-ref="PatientObjectStore" key="#[flowVars.patientID]"  doc:name="Store Patient" overwrite="true" value-ref="#['patient_id']"/>
+        <objectstore:store config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" value-ref="#['access_token']" overwrite="true" doc:name="Store Access Token"/>
+
+        <objectstore:store config-ref="ObjectStore" key="refresh_token_#[flowVars.patientID]"  doc:name="Store Refresh Token" overwrite="true" value-ref="#['refresh_token']"/>
+        <objectstore:store config-ref="ObjectStore" key="user_id_#[flowVars.patientID]"  doc:name="Store Fitbit User ID" overwrite="true" value-ref="#['user_id']"/>
+        <objectstore:store config-ref="ObjectStore" key="tracker_id_#[flowVars.patientID]" value-ref="#['tracker_id']" overwrite="true" doc:name="Store Tracker ID"/>
+        <flow-ref name="removePatientDetails" doc:name="removePatientDetails"/>
+    </munit:test>
+    <munit:test name="fitbit-devices-subflow-Test" description="Verifying functionality of [fitbit-devices-subflow]">
+        <mock:when messageProcessor=".*:.*" doc:name="Mock 'Request devices data'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Request devices data']"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('test_data/fitbit_devices_response.json').asString()]" mimeType="text/json"/>
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Retrieve accessToken'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Retrieve accessToken']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Access Token not as expected!" expectedValue="#[flowVars.access_token]" actualValue="#[flowVars.accessToken]" doc:name="Check Access Token"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Set URL for Devices'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Set URL for Devices']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Fitbit Devices request path not as expected!" expectedValue="/1/user/#[flowVars.user_id]/devices.json" actualValue="#[flowVars.devices_URL]" doc:name="Check Fitbit Devices request path"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Set Tracker ID to variable'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Save Tracker ID from variable']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <objectstore:retrieve config-ref="ObjectStore" key="tracker_id_#[flowVars.patientID]" targetProperty="trackerID" doc:name="Retrieve Tracker ID"/>
+                <munit:assert-on-equals message="Tracker ID not as expected!" expectedValue="#['123456789']" actualValue="#[flowVars.trackerID]" doc:name="Check Tracker ID"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <dw:transform-message doc:name="Prepare Variables">
+            <dw:set-variable variableName="patientID"><![CDATA[%dw 1.0
+%output application/java
+---
+'123']]></dw:set-variable>
+            <dw:set-variable variableName="access_token"><![CDATA[%dw 1.0
+%output application/java
+---
+'1234abcd']]></dw:set-variable>
+            <dw:set-variable variableName="user_id"><![CDATA[%dw 1.0
+%output application/java
+---
+'4567']]></dw:set-variable>
+            <dw:set-variable variableName="id"><![CDATA[%dw 1.0
+%output application/java
+---
+'123']]></dw:set-variable>
+        </dw:transform-message>
+        <objectstore:store config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" value-ref="#[flowVars.access_token]" overwrite="true" doc:name="Store Access Token"/>
+        <objectstore:store config-ref="ObjectStore" key="user_id_#[flowVars.patientID]" value-ref="#[flowVars.user_id]" overwrite="true" doc:name="Store Fitbit User ID"/>
+        <flow-ref name="fitbit-devices-subflow" doc:name="fitbit-devices-subflow"/>
+        <dw:transform-message doc:name="Transform to Java object">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+        </dw:transform-message>
+        <munit:assert-true message="Payload is not as expected" condition="#[payload.resourceType.equals(&quot;Bundle&quot;) &amp;&amp; payload.total.equals(2) &amp;&amp; payload.entry[0].resource.resourceType.equals(&quot;Device&quot;) &amp;&amp; payload.entry[0].resource.id.equals(&quot;123456789&quot;) &amp;&amp; payload.entry[0].resource.model.equals(&quot;Charge HR&quot;) &amp;&amp; payload.entry[0].resource.type.text.equals(&quot;TRACKER&quot;) &amp;&amp; payload.entry[1].resource.resourceType.equals(&quot;Device&quot;) &amp;&amp; payload.entry[1].resource.id.equals(&quot;ABCDEF123456&quot;) &amp;&amp; payload.entry[1].resource.model.equals(&quot;Aria&quot;) &amp;&amp; payload.entry[1].resource.type.text.equals(&quot;SCALE&quot;)]" doc:name="Check FHIR Devices"/>
+    </munit:test>
+    <munit:test name="fitbit-activity-subflow-Test" description="Verifying functionality of [fitbit-activity-subflow]">
+        <mock:when messageProcessor=".*:.*" doc:name="Mock 'Reuest daily activity data'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Reuest daily activity data']"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('test_data/fitbit_activities_response.json').asString()]" mimeType="text/json"/>
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Retrieve accessToken'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Retrieve accessToken']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Access Token not as expected!" expectedValue="#[flowVars.access_token]" actualValue="#[flowVars.accessToken]" doc:name="Check Access Token"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Set URL for Daily Activity'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Set URL for Daily Activity']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Fitbit Activities request path not as expected!" expectedValue="/1/user/#[flowVars.user_id]/activities/tracker/steps/date/#[flowVars.baseDate]/#[flowVars.endDate].json" actualValue="#[flowVars.activity_URL]" doc:name="Check Fitbit Activities request path"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <dw:transform-message doc:name="Prepare Variables">
+            <dw:set-variable variableName="patientID"><![CDATA[%dw 1.0
+%output application/java
+---
+'123']]></dw:set-variable>
+            <dw:set-variable variableName="access_token"><![CDATA[%dw 1.0
+%output application/java
+---
+'1234abcd']]></dw:set-variable>
+            <dw:set-variable variableName="user_id"><![CDATA[%dw 1.0
+%output application/java
+---
+'4567']]></dw:set-variable>
+            <dw:set-variable variableName="id"><![CDATA[%dw 1.0
+%output application/java
+---
+'123']]></dw:set-variable>
+            <dw:set-variable variableName="endDate"><![CDATA[%dw 1.0
+%output application/java
+---
+'2016-07-18']]></dw:set-variable>
+            <dw:set-variable variableName="baseDate"><![CDATA[%dw 1.0
+%output application/java
+---
+'2016-07-17']]></dw:set-variable>
+            <dw:set-variable variableName="trackerId"><![CDATA[%dw 1.0
+%output application/java
+---
+'123456789']]></dw:set-variable>
+        </dw:transform-message>
+        <objectstore:store config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" value-ref="#[flowVars.access_token]" overwrite="true" doc:name="Store Access Token"/>
+        <objectstore:store config-ref="ObjectStore" key="user_id_#[flowVars.patientID]" value-ref="#[flowVars.user_id]" overwrite="true" doc:name="Store Fitbit User ID"/>
+        <flow-ref name="fitbit-activity-subflow" doc:name="fitbit-activity-subflow"/>
+        <dw:transform-message doc:name="Transform to Java object">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+        </dw:transform-message>
+        <munit:assert-true message="Payload is not as expected" condition="#[payload[0].resource.resourceType.equals(&quot;Observation&quot;) &amp;&amp; payload[0].resource.device.reference.equals(&quot;Device/&quot; + flowVars.trackerId) &amp;&amp; payload[0].resource.effectiveDateTime.equals(&quot;2016-07-17&quot;) &amp;&amp; payload[0].resource.valueQuantity.value.equals(&quot;29931&quot;) &amp;&amp; payload[0].resource.valueQuantity.unit.equals(&quot;MDC_DIM_STEP&quot;) &amp;&amp; payload[1].resource.effectiveDateTime.equals(&quot;2016-07-18&quot;) &amp;&amp; payload[1].resource.valueQuantity.value.equals(&quot;27512&quot;)]" doc:name="Check FHIR Activities"/>
+    </munit:test>
+    <munit:test name="fitbit-sleep-subflow-Test" description="Verifying functionality of [fitbit-sleep-subflow]">
+        <mock:when messageProcessor=".*:.*" doc:name="Mock 'Request sleep data'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Request sleep data']"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('test_data/fitbit_sleep_response.json').asString()]" mimeType="text/json"/>
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Retrieve accessToken'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Retrieve accessToken']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Access Token not as expected!" expectedValue="#[flowVars.access_token]" actualValue="#[flowVars.accessToken]" doc:name="Check Access Token"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Set URL for Sleep'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Set URL for Sleep']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Fitbit Sleep request path not as expected!" expectedValue="/1/user/#[flowVars.user_id]/sleep/minutesAsleep/date/#[flowVars.baseDate]/#[flowVars.endDate].json" actualValue="#[flowVars.sleep_URL]" doc:name="Check Fitbit Sleep request path"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <dw:transform-message doc:name="Prepare Variables">
+            <dw:set-variable variableName="patientID"><![CDATA[%dw 1.0
+%output application/java
+---
+'123']]></dw:set-variable>
+            <dw:set-variable variableName="access_token"><![CDATA[%dw 1.0
+%output application/java
+---
+'1234abcd']]></dw:set-variable>
+            <dw:set-variable variableName="user_id"><![CDATA[%dw 1.0
+%output application/java
+---
+'4567']]></dw:set-variable>
+            <dw:set-variable variableName="id"><![CDATA[%dw 1.0
+%output application/java
+---
+'123']]></dw:set-variable>
+            <dw:set-variable variableName="endDate"><![CDATA[%dw 1.0
+%output application/java
+---
+'2016-07-18']]></dw:set-variable>
+            <dw:set-variable variableName="baseDate"><![CDATA[%dw 1.0
+%output application/java
+---
+'2016-07-17']]></dw:set-variable>
+            <dw:set-variable variableName="trackerId"><![CDATA[%dw 1.0
+%output application/java
+---
+'123456789']]></dw:set-variable>
+        </dw:transform-message>
+        <objectstore:store config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" value-ref="#[flowVars.access_token]" overwrite="true" doc:name="Store Access Token"/>
+        <objectstore:store config-ref="ObjectStore" key="user_id_#[flowVars.patientID]" value-ref="#[flowVars.user_id]" overwrite="true" doc:name="Store Fitbit User ID"/>
+        <flow-ref name="fitbit-sleep-subflow" doc:name="fitbit-sleep-subflow"/>
+        <dw:transform-message doc:name="Transform to Java object">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+        </dw:transform-message>
+        <munit:assert-true message="Payload is not as expected" condition="#[payload[0].resource.resourceType.equals(&quot;Observation&quot;) &amp;&amp; payload[0].resource.device.reference.equals(&quot;Device/&quot; + flowVars.trackerId) &amp;&amp; payload[0].resource.effectiveDateTime.equals(&quot;2016-07-17&quot;) &amp;&amp; payload[0].resource.valueQuantity.value.equals(&quot;660&quot;) &amp;&amp; payload[0].resource.valueQuantity.unit.equals(&quot;MDC_DIM_MIN&quot;) &amp;&amp; payload[1].resource.effectiveDateTime.equals(&quot;2016-07-18&quot;) &amp;&amp; payload[1].resource.valueQuantity.value.equals(&quot;510&quot;)]" doc:name="Check FHIR Sleep Data"/>
+    </munit:test>
+    <munit:test name="fitbit-tokenRefresh-Test" description="Verifying functionality of [fitbit-tokenRefresh]" >
+        <mock:when messageProcessor=".*:.*" doc:name="Mock 'Refresh Token with Fitbit'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Refresh Token with Fitbit']"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('test_data/refresh_token_response.json').asString()]" mimeType="application/json"/>
+
+        </mock:when>
+        <mock:when messageProcessor="mule:sub-flow" doc:name="Mock 'saveTokens'">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="#[matchContains('saveTokens')]"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[getResource('test_data/refresh_token_response.json').asString()]" mimeType="application/java"/>
+
+        </mock:when>
+        <mock:spy messageProcessor=".*:.*" doc:name="Spy 'Set Payload For Refreshing Fitbit Token'">
+            <mock:with-attributes>
+                <mock:with-attribute name="doc:name" whereValue="#['Set Payload For Refreshing Fitbit Token']"/>
+            </mock:with-attributes>
+            <mock:assertions-after-call>
+                <munit:assert-on-equals message="Refresh Token request payload not as expected!" expectedValue="grant_type=refresh_token&amp;refresh_token=#[flowVars.refreshToken]" actualValue="#[payload]" doc:name="Check Fitbit Refresh Token request payload"/>
+            </mock:assertions-after-call>
+        </mock:spy>
+        <set-variable variableName="patientID" value="#['123']" doc:name="Set patientID variable"/>
+        <set-variable variableName="refreshToken" value="#['abcd1234']" doc:name="Set refreshToken variable"/>
+        <objectstore:store config-ref="PatientObjectStore" key="#[flowVars.patientID]" value-ref="#[flowVars.patientID]" overwrite="true" doc:name="Store Patient"/>
+        <objectstore:store config-ref="ObjectStore" key="refresh_token_#[flowVars.patientID]" value-ref="#[flowVars.refreshToken]" doc:name="Store Refresh Token" overwrite="true"/>
+        <flow-ref name="fitbit-tokenRefresh" doc:name="fitbit-tokenRefresh"/>
+    </munit:test>
+</mule>
