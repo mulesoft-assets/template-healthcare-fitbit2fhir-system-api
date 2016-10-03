@@ -1,0 +1,16 @@
+[
+	{
+        "battery": "High",
+        "deviceVersion": "Charge HR",
+        "id": "123456789",
+        "lastSyncTime": "2015-07-27T17:01:39.313",
+        "type": "TRACKER"
+    },
+    {
+        "battery": "High",
+        "deviceVersion": "Aria",
+        "id": "ABCDEF123456",
+        "lastSyncTime": "2015-07-27T07:14:34.000",
+        "type": "SCALE"
+    }
+]
