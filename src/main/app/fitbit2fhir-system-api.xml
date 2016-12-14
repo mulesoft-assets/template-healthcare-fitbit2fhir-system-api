@@ -465,18 +465,13 @@ payload]]></dw:set-payload>
 			fullUrl: p('baseUri') ++ "/Device/" ++ $.id,
 			resource: {
 				"resourceType": "Device",
-				"id": $.id,
 				"patient": {
 				  "reference": ["Patient", flowVars.patientID] joinBy "/"
 				},
-				"text": {
-        			"status": "empty",
-        			"div": ""
-    			},
-				("identifier": ($.identifier map 
+				("identifier": [ 
 			    {
-			      	"value": $.value
-			    })) when ($.identifier != null),
+			      	"value": $.id
+			    }]) when ($.id != null),
 				"manufacturer": "Fitbit, Inc.",
 				"model": $.deviceVersion,
 				"type": {
