@@ -71,7 +71,6 @@ types:
       
   #Fitbit
   FitbitMessage:                !include dataTypes/fitbit/FitbitMessage.raml
-  FitbitLocation:               !include dataTypes/fitbit/FitbitLocation.raml
   FitbitAuthorizedPatients:     !include dataTypes/fitbit/FitbitAuthorizedPatients.raml
   FitbitPatientAuthorizationInfo: !include dataTypes/fitbit/FitbitPatientAuthorizationInfo.raml
 
@@ -96,14 +95,20 @@ types:
           body: 
             application/json:
               type: FitbitPatientAuthorizationInfo
-    /authorize:
-      displayName: Authorize Fitbit user
+    /register:
+      displayName: Register Fitbit account
       get:
+        description: Register patient's Fitbit account
+        queryParameters:
+          code:
+            description: Authorization code from Fitbit
+            type: string
+            example: fs4ag1f35g43543b13f1v3a54gn4fsfs545s3143g
         responses: 
           200:  
             body: 
               application/json:
-                type: FitbitLocation
+                type: FitbitMessage
     /unauthorize:
       displayName: Unauthorize Fitbit user
       get:

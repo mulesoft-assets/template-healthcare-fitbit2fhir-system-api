@@ -41,7 +41,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
    </http:request-config>
     
     <apikit:config name="api-config" raml="healthcare-system-api.raml" consoleEnabled="true" consolePath="console" doc:name="Router">
-        <apikit:flow-mapping resource="/Patient/{id}/authorize" action="get" flow-ref="get:/Patient/{id}/authorize:api-config"/>
+        <apikit:flow-mapping resource="/Patient/{id}/register" action="get" flow-ref="get:/Patient/{id}/register:api-config"/>
         <apikit:flow-mapping resource="/Patient/{id}/unauthorize" action="get" flow-ref="get:/Patient/{id}/unauthorize:api-config"/>
         <apikit:flow-mapping resource="/Patient/{id}/Observation" action="get" flow-ref="get:/Patient/{id}/Observation:api-config"/>
         <apikit:flow-mapping resource="/Patient/{id}/Device" action="get" flow-ref="get:/Patient/{id}/Device:api-config"/>
@@ -59,27 +59,13 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <apikit:router config-ref="api-config" doc:name="APIkit Router"/>
         <exception-strategy ref="api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy"/>
     </flow>
-    <flow name="get:/Patient/{id}/authorize:api-config">
-        <set-variable variableName="patientID" value="#[message.inboundProperties.'http.uri.params'.id]" doc:name="Set patientID"/>
-        <logger message="Authorize patient: #[flowVars.patientID]" level="INFO" doc:name="Log Authorize patient"/>
-        <objectstore:store config-ref="ObjectStore" key="patient_id" value-ref="#[flowVars.patientID]" overwrite="true" doc:name="Save Patient ID"/>
+    <flow name="get:/Patient/{id}/register:api-config">
 
-         <dw:transform-message doc:name="Set location in Payload">
-             <dw:set-payload><![CDATA[%dw 1.0
- %output application/json
- ---
- {
- 	location: "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=${fitbit.client.id}&redirect_uri=${fitbit.redirect.uri}&scope=activity%20nutrition%20heartrate%20location%20nutrition%20profile%20settings%20sleep%20social%20weight&prompt=login"
- }]]></dw:set-payload>
-         </dw:transform-message>
-   
-    </flow>
-    <flow name="fitbit-callback-get-tokens">
-        <http:listener config-ref="api-httpListenerConfig" path="/fitbit/callback" doc:name="HTTP"/>
         <set-variable variableName="accessCode" value="#[message.inboundProperties.'http.query.params'.code]" doc:name="Save Access Code"/>
-        <logger message="Callback at #[server.dateTime.toString()] - Access Code: #[flowVars.accessCode]" level="INFO" doc:name="Log Callback"/>
+        <set-variable variableName="patient_id" value="#[message.inboundProperties.'http.uri.params'.id]" doc:name="Set patient_id variable"/>
+
+        <logger message="Access Code: #[flowVars.accessCode]" level="INFO" doc:name="Log Callback"/>
         <set-payload value="client_id=${fitbit.client.id}&amp;grant_type=authorization_code&amp;redirect_uri=${fitbit.redirect.uri}&amp;code=#[flowVars.accessCode]" doc:name="Set Payload for Getting Access Tokens from Fitbit"/>
-        <objectstore:retrieve config-ref="ObjectStore" key="patient_id" targetProperty="patient_id" doc:name="Retrieve Patient ID"/>
 
         <http:request config-ref="api.fitbit.com" path="/oauth2/token" method="POST" doc:name="Get Access Tokens from Fitbit">
             <http:request-builder>
@@ -98,7 +84,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
 ---
-{"message": "Patient was authorized"}]]></dw:set-payload>
+{"message": "Patient was registered"}]]></dw:set-payload>
         </dw:transform-message>
     </flow>
     <sub-flow name="saveTokens">
