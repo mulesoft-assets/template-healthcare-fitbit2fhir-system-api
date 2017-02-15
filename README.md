@@ -22,7 +22,7 @@ Please review the terms of the license before downloading and using this templat
 
 As a FitBit user I want a microservice to access data from the FitBit system and transform them to FHIR standard.
 
-Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to a day to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 1.0.2 DSTU2](https://www.hl7.org/FHIR/DSTU2/index.html).
+Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 1.0.2 DSTU2](https://www.hl7.org/FHIR/DSTU2/index.html).
 
 # Considerations <a name="considerations"/>
 
@@ -31,16 +31,16 @@ Use Anypoint Studio v6.1.0+ and Mule ESB 3.8.1+ to run this template.
 
 ### Register your Fitbit Application
 
-Firstly you need to create a new developer app at http://dev.fitbit.com/ as  the OAuth 2.0 Application Type “Server”. Note that you will need to define the Callback URL too. This is important as you would need to already plan your CloudHub domain (assuming you’re using CloudHub as the target platform). The Callback (Redirect) URI should be as following:
-
-	http://your.domain.cloudhub.io/fitbit/callback
+Firstly you need to create a new developer app at http://dev.fitbit.com/ as  the OAuth 2.0 Application Type “Server”. Note that you will need to define the Callback URL too. This is important as you would need to set this URL in property `fitbit.redirect.uri`.
 
 Key parameters to note once you’ve registered your app is the OAuth 2.0 Client ID, the Client (Consumer) Secret and the Redirect URI.
 
 ### Running the application
 
 Fitbit’s OAuth login has to be initiated from a web-browser.
-http://<your-app-domain>.cloudhub.io/Patient/{id}/authorize would get you to the login landing page where you will fill in your email and password. {id} represents Patient ID, which wants to authorize to Fitbit account.
+**https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=<your-client-id>&redirect_uri=<your-redirect-uri>&scope=activity%20profile%20settings%20sleep%20weight&prompt=login** would get you to the login landing page where you will fill in your email and password. After the successful login you will be redirected to the URL specified in the app at http://dev.fitbit.com/. You can notice the access code in the URL.
+
+To register patient to this fitbit account you need to do create the request **GET https://<your-app-domain>.cloudhub.io/Patient/{id}/register?code=<your-access-code>** where {id} represents Patient ID, who wants to authorize to Fitbit account and access code is the one obtained after login with Fitbit credentials.
 
 # Run it! <a name="runit"/>
 
@@ -104,8 +104,8 @@ In order to use this Mule Anypoint Template you need to configure properties (Cr
 + token.refresh.poll.startDelayMinutes `2`
 
 + keystore.location `keystore.jks`
-+ keystore.password `mule1234`
-+ key.password `mule1234`
++ keystore.password `password1234`
++ key.password `password1234`
 + key.alias `alias`
 
 + baseUri `baseUri.of.your.app/api`
