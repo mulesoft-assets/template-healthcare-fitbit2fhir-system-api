@@ -64,7 +64,7 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
         <set-variable variableName="accessCode" value="#[message.inboundProperties.'http.query.params'.code]" doc:name="Save Access Code"/>
         <set-variable variableName="patient_id" value="#[message.inboundProperties.'http.uri.params'.id]" doc:name="Set patient_id variable"/>
 
-        <logger message="Access Code: #[flowVars.accessCode]" level="INFO" doc:name="Log Callback"/>
+        <logger message="Access Code: #[flowVars.accessCode]" level="INFO" doc:name="Log Access code"/>
         <set-payload value="client_id=${fitbit.client.id}&amp;grant_type=authorization_code&amp;redirect_uri=${fitbit.redirect.uri}&amp;code=#[flowVars.accessCode]" doc:name="Set Payload for Getting Access Tokens from Fitbit"/>
 
         <http:request config-ref="api.fitbit.com" path="/oauth2/token" method="POST" doc:name="Get Access Tokens from Fitbit">
@@ -136,8 +136,8 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
                         <http:header headerName="Host" value="${api.fitbit.host}"/>
 
                     </http:request-builder>
+                    <http:success-status-code-validator values="200,401"/>
                 </http:request>
-                <logger message="Fitbit Token Revoked" level="INFO" doc:name="Log Token Revoked"/>
                 <flow-ref name="removePatientDetails" doc:name="removePatientDetails"/>
                 <flow-ref name="log-objectstores" doc:name="log-objectstores"/>
                 <logger message="Patient unauthorized" level="INFO" doc:name="Log success"/>
@@ -160,6 +160,17 @@ http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/ba
             </otherwise>
         </choice>
     </flow>
+    <sub-flow name="automaticUnregistration">
+        <logger message="Access token invalid or expired. Patient #[flowVars.patientID] will be unregistered." level="INFO" doc:name="Log invalid access token"/>
+        <flow-ref name="removePatientDetails" doc:name="removePatientDetails"/>
+        <set-property propertyName="http.status" value="401" doc:name="HTTP status Property"/>
+        <dw:transform-message doc:name="Create response JSON">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{"message": "Access token invalid or expired. Please, authorize your Fitbit account again."}]]></dw:set-payload>
+        </dw:transform-message>
+    </sub-flow>
     <sub-flow name="removePatientDetails">
         <objectstore:remove config-ref="PatientObjectStore" key="#[flowVars.patientID]" ignoreNotExists="true" doc:name="Remove Patient"/>
         <objectstore:remove config-ref="ObjectStore" key="access_token_#[flowVars.patientID]" ignoreNotExists="true" doc:name="Remove Access Token"/>
@@ -192,15 +203,23 @@ inboundProperties."http.query.params".date[2..-1]]]></dw:set-variable>
 
                 </dw:transform-message>
                 <flow-ref name="fitbit-devices-subflow" doc:name="fitbit-devices-subflow"/>
-                <objectstore:retrieve config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" targetProperty="trackerId" doc:name="Retrieve Tracker ID"/>
-                <enricher doc:name="Store activityFhirData" source="#[payload]" target="#[flowVars.activityFhirData]">
-                    <flow-ref name="fitbit-activity-subflow" doc:name="fitbit-activity-subflow"/>
-                </enricher>
-                <enricher doc:name="Store sleepFhirData" source="#[payload]" target="#[flowVars.sleepFhirData]">
-                    <flow-ref name="fitbit-sleep-subflow" doc:name="fitbit-sleep-subflow"/>
-                </enricher>
-                <dw:transform-message doc:name="Prepare Observations">
-                    <dw:set-payload><![CDATA[%dw 1.0
+                <choice doc:name="Success?">
+                    <when expression="#[message.outboundProperties.'http.status' != 401]">
+                        <objectstore:retrieve config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" targetProperty="trackerId" doc:name="Retrieve Tracker ID"/>
+                        <enricher doc:name="Store activityFhirData">
+                            <flow-ref name="fitbit-activity-subflow" doc:name="fitbit-activity-subflow"/>
+                            <enrich source="#[message.outboundProperties.'http.status']" target="#[flowVars.httpStatus]"/>
+                            <enrich source="#[payload]" target="#[flowVars.activityFhirData]"/>
+                        </enricher>
+                        <enricher doc:name="Store sleepFhirData">
+                            <flow-ref name="fitbit-sleep-subflow" doc:name="fitbit-sleep-subflow"/>
+                            <enrich source="#[message.outboundProperties.'http.status']" target="#[flowVars.httpStatus]"/>
+                            <enrich source="#[payload]" target="#[flowVars.sleepFhirData]"/>
+                        </enricher>
+                        <choice doc:name="Success?">
+                            <when expression="#[flowVars.httpStatus != 401]">
+                                <dw:transform-message doc:name="Prepare Observations">
+                                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
 ---
 using (obs = (flowVars.activityFhirData ++ flowVars.sleepFhirData)){
@@ -216,7 +235,18 @@ using (obs = (flowVars.activityFhirData ++ flowVars.sleepFhirData)){
 	total: sizeOf obs,
 	entry: obs when ((sizeOf obs) > 0) otherwise []
 }]]></dw:set-payload>
-                </dw:transform-message>
+                                </dw:transform-message>
+                            </when>
+                            <otherwise>
+                                <flow-ref name="automaticUnregistration" doc:name="automaticUnregistration"/>
+                            </otherwise>
+                        </choice>
+                    </when>
+                    <otherwise>
+                        <flow-ref name="automaticUnregistration" doc:name="automaticUnregistration"/>
+                    </otherwise>
+                </choice>
+
             </when>
             <otherwise>
                 <logger message="Access Token not available. Please authorize your Fitbit account." level="INFO" doc:name="Log access token not available"/>
@@ -244,25 +274,27 @@ using (obs = (flowVars.activityFhirData ++ flowVars.sleepFhirData)){
 
 
 
+
             </http:request-builder>
+            <http:success-status-code-validator values="200,401,400"/>
         </http:request>
-        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
-        <logger message="Daily activity data: #[payload] with Device: #[flowVars.trackerId]" level="INFO" doc:name="Log Daily activity data"/>
-        <dw:transform-message doc:name="Transform JSON to Java object" metadata:id="c4ed7402-da97-43d6-aad6-47c3347dfbff">
-            <dw:input-payload/>
-            <dw:set-payload><![CDATA[%dw 1.0
+        <choice doc:name="Success?">
+            <when expression="#[message.inboundProperties.'http.status' == 200]">
+                <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+                <logger message="Daily activity data: #[payload] with Device: #[flowVars.trackerId]" level="INFO" doc:name="Log Daily activity data"/>
+                <dw:transform-message metadata:id="c4ed7402-da97-43d6-aad6-47c3347dfbff" doc:name="Transform JSON to Java object">
+                    <dw:input-payload/>
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 payload]]></dw:set-payload>
-        </dw:transform-message>
-
-
-        <dw:transform-message metadata:id="4af4dd1f-7205-4508-81cc-2aed03929aa5" doc:name="Transform Daily activity data to FHIR">
-            <dw:input-payload doc:sample="sample_data\acitivities.json"/>
-            <dw:input-variable doc:sample="sample_data\flowVars-patientID.dwl" variableName="patientID"/>
-            <dw:input-variable doc:sample="sample_data\flowVars-patientIDType.dwl" variableName="patientIDType"/>
-            <dw:input-variable doc:sample="sample_data\flowVars-trackerId.dwl" variableName="trackerId"/>
-            <dw:set-payload><![CDATA[%dw 1.0
+                </dw:transform-message>
+                <dw:transform-message metadata:id="4af4dd1f-7205-4508-81cc-2aed03929aa5" doc:name="Transform Daily activity data to FHIR">
+                    <dw:input-payload doc:sample="sample_data\acitivities.json"/>
+                    <dw:input-variable doc:sample="sample_data\flowVars-patientID.dwl" variableName="patientID"/>
+                    <dw:input-variable doc:sample="sample_data\flowVars-patientIDType.dwl" variableName="patientIDType"/>
+                    <dw:input-variable doc:sample="sample_data\flowVars-trackerId.dwl" variableName="trackerId"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 payload.activities-tracker-steps map {
@@ -296,7 +328,13 @@ payload.activities-tracker-steps map {
 	  	}
 	}
 }]]></dw:set-payload>
-        </dw:transform-message>
+                </dw:transform-message>
+            </when>
+            <otherwise>
+                <set-property propertyName="http.status" value="401" doc:name="HTTP status Property"/>
+            </otherwise>
+        </choice>
+
 
     </sub-flow>
 
@@ -313,24 +351,25 @@ payload.activities-tracker-steps map {
 
 
             </http:request-builder>
+            <http:success-status-code-validator values="200,401,400"/>
         </http:request>
-        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
-        <logger message="Sleep Data: #[payload] with Device: #[flowVars.trackerId]" level="INFO" doc:name="Log Sleep data"/>
-        <dw:transform-message doc:name="Transform JSON to Java object" metadata:id="71cbff5b-8cad-4c89-9809-13e036f0349b">
-            <dw:input-payload/>
-            <dw:set-payload><![CDATA[%dw 1.0
+        <choice doc:name="Success?">
+            <when expression="#[message.inboundProperties.'http.status' == 200]">
+                <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+                <logger message="Sleep Data: #[payload] with Device: #[flowVars.trackerId]" level="INFO" doc:name="Log Sleep data"/>
+                <dw:transform-message metadata:id="71cbff5b-8cad-4c89-9809-13e036f0349b" doc:name="Transform JSON to Java object">
+                    <dw:input-payload/>
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 payload]]></dw:set-payload>
-        </dw:transform-message>
-
-
-        <dw:transform-message metadata:id="b47ec926-2b18-4012-9291-95e4cf9cee20" doc:name="Transform Sleep data to FHIR">
-            <dw:input-payload doc:sample="sample_data\sleep.json"/>
-            <dw:input-variable doc:sample="sample_data\flowVars-patientID.dwl" variableName="patientID"/>
-            <dw:input-variable doc:sample="sample_data\flowVars-patientIDType.dwl" variableName="patientIDType"/>
-            <dw:input-variable doc:sample="sample_data\flowVars-trackerId.dwl" variableName="trackerId"/>
-            <dw:set-payload><![CDATA[%dw 1.0
+                </dw:transform-message>
+                <dw:transform-message metadata:id="b47ec926-2b18-4012-9291-95e4cf9cee20" doc:name="Transform Sleep data to FHIR">
+                    <dw:input-payload doc:sample="sample_data\sleep.json"/>
+                    <dw:input-variable doc:sample="sample_data\flowVars-patientID.dwl" variableName="patientID"/>
+                    <dw:input-variable doc:sample="sample_data\flowVars-patientIDType.dwl" variableName="patientIDType"/>
+                    <dw:input-variable doc:sample="sample_data\flowVars-trackerId.dwl" variableName="trackerId"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 payload.sleep-minutesAsleep map {
@@ -364,7 +403,13 @@ payload.sleep-minutesAsleep map {
 		}
 	}
 }]]></dw:set-payload>
-        </dw:transform-message>
+                </dw:transform-message>
+            </when>
+            <otherwise>
+                <set-property propertyName="http.status" value="401" doc:name="HTTP status Property"/>
+            </otherwise>
+        </choice>
+
 
     </sub-flow>
 
@@ -383,6 +428,14 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
 
                 </dw:transform-message>
                 <flow-ref name="fitbit-devices-subflow" doc:name="fitbit-devices-subflow"/>
+                <choice doc:name="Success?">
+                    <when expression="#[message.outboundProperties.'http.status' != 401]">
+                        <logger message="Fitbit Device data obtained." level="INFO" doc:name="Log success"/>
+                    </when>
+                    <otherwise>
+                        <flow-ref name="automaticUnregistration" doc:name="automaticUnregistration"/>
+                    </otherwise>
+                </choice>
 
 
             </when>
@@ -412,27 +465,27 @@ inboundProperties.'http.uri.params'.id]]></dw:set-variable>
 
 
             </http:request-builder>
+            <http:success-status-code-validator values="200,401,400"/>
         </http:request>
-        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
-        <logger message="Devices data: #[payload]" level="INFO" doc:name="Log Devices data"/>
-
-        <dw:transform-message doc:name="Set Tracker ID to variable">
-            <dw:input-payload doc:sample="sample_data\devices.dwl"/>
-            <dw:set-payload><![CDATA[%dw 1.0
+        <choice doc:name="Success?">
+            <when expression="#[message.inboundProperties.'http.status' == 200]">
+                <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+                <logger message="Devices data: #[payload]" level="INFO" doc:name="Log Devices data"/>
+                <dw:transform-message doc:name="Set Tracker ID to variable">
+                    <dw:input-payload doc:sample="sample_data\devices.dwl"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 payload]]></dw:set-payload>
-            <dw:set-variable variableName="trackerId"><![CDATA[%dw 1.0
+                    <dw:set-variable variableName="trackerId"><![CDATA[%dw 1.0
 %output application/java
 ---
 (payload filter $.type == "TRACKER").id default null]]></dw:set-variable>
-        </dw:transform-message>
-
-        <objectstore:store config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" value-ref="#[flowVars.trackerId == null || flowVars.trackerId.isEmpty() ? &quot;&quot; : flowVars.trackerId[0]]" overwrite="true" doc:name="Save Tracker ID from variable"/>
-
-        <dw:transform-message doc:name="Transform Devices data to FHIR">
-            <dw:input-payload doc:sample="sample_data\devices.dwl"/>
-            <dw:set-payload><![CDATA[%dw 1.0
+                </dw:transform-message>
+                <objectstore:store config-ref="ObjectStore" key="tracker_id_#[flowVars.id]" value-ref="#[flowVars.trackerId == null || flowVars.trackerId.isEmpty() ? &quot;&quot; : flowVars.trackerId[0]]" overwrite="true" doc:name="Save Tracker ID from variable"/>
+                <dw:transform-message doc:name="Transform Devices data to FHIR">
+                    <dw:input-payload doc:sample="sample_data\devices.dwl"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
 ---
 {
@@ -470,7 +523,13 @@ payload]]></dw:set-payload>
 			}
 	} when ((sizeOf payload) > 0) otherwise []
 }]]></dw:set-payload>
-        </dw:transform-message>
+                </dw:transform-message>
+            </when>
+            <otherwise>
+                <set-property propertyName="http.status" value="401" doc:name="HTTP status Property"/>
+            </otherwise>
+        </choice>
+
     </sub-flow>
     <flow name="get:/Patient:api-config">
         <logger message="Get list of authorized patients" level="INFO" doc:name="Log get patients"/>
@@ -521,9 +580,20 @@ payload]]></dw:set-payload>
                     <http:header headerName="Host" value="${api.fitbit.host}"/>
 
                 </http:request-builder>
+                <http:success-status-code-validator values="200,400"/>
             </http:request>
-            <byte-array-to-string-transformer doc:name="Byte Array to String"/>
-            <flow-ref name="saveTokens" doc:name="saveTokens"/>
+            <choice doc:name="Success?">
+                <when expression="#[message.inboundProperties.'http.status' == 200]">
+                    <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+                    <flow-ref name="saveTokens" doc:name="saveTokens"/>
+                </when>
+                <otherwise>
+                    <logger message="Refresh token invalid or expired. Patient #[flowVars.patient_id] will be unauthorized." level="INFO" doc:name="Log refresh token invalid"/>
+                    <set-variable variableName="patientID" value="#[flowVars.patient_id]" doc:name="Set patientID variable"/>
+                    <flow-ref name="removePatientDetails" doc:name="removePatientDetails"/>
+                </otherwise>
+            </choice>
+
         </foreach>
     </flow>
 

@@ -132,6 +132,10 @@ types:
             body: 
               application/json:
                 type: ObservationBundle
+          401:  
+            body: 
+              application/json:
+                type: FitbitMessage
     /Device:
       displayName: Fitbit devices in FHIR structure
       get:
@@ -140,3 +144,7 @@ types:
             body: 
               application/json:
                 type: DeviceBundle
+          401:  
+            body: 
+              application/json:
+                type: FitbitMessage
