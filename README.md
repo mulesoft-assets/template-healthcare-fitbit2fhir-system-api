@@ -55,7 +55,7 @@ In this section we detail the way you should run your Anypoint Template on your 
 
 First thing to know if you are a newcomer to Mule is where to get the tools.
 
-+ You can download Anypoint Studio from this [Location](http://www.mulesoft.com/platform/studio)
++ You can download Mule Studio from this [Location](http://www.mulesoft.com/platform/mule-studio)
 + You can download Mule ESB from this [Location](http://www.mulesoft.com/platform/soa/mule-esb-open-source-esb)
 
 ### Importing an Anypoint Template into Studio
@@ -65,13 +65,13 @@ Anypoint Studio offers several ways to import a project into the workspace, for 
 + Anypoint Studio Project from File System
 + Packaged mule application (.jar)
 
-You can find a detailed description on how to do so in this [Documentation Page](https://docs.mulesoft.com/anypoint-studio/v/6/importing-and-exporting-in-studio).
+You can find a detailed description on how to do so in this [Documentation Page](http://www.mulesoft.org/documentation/display/current/Importing+and+Exporting+in+Studio).
 
 ### Running on Studio <a name="runonstudio"/>
 
 Once you have imported you Anypoint Template into Anypoint Studio you need to follow these steps to run it:
 
-+ Generate keystore and set up the truststore (You can find a detailed description on how to do so in this [Documentation Page](https://docs.mulesoft.com/mule-user-guide/v/3.7/tls-configuration#generating-keystores-and-truststores))
++ Generate keystore and set up the truststore (You can find a detailed description on how to do so in this [Documentation Page](https://docs.mulesoft.com/mule4-user-guide/v/4.1/tls-configuration#keystores-and-truststores))
 + Locate the properties file `mule.dev.properties`, in src/main/resources
 + Complete all the properties required as per the examples in the section [Properties to be configured](#propertiestobeconfigured)
 + Once that is done, right click on you Anypoint Template project folder
@@ -84,12 +84,12 @@ Fill in all the properties in one of the property files, for example in [mule.pr
 
 ## Running on CloudHub <a name="runoncloudhub"/>
 
-While [creating your application on CloudHub](https://docs.mulesoft.com/runtime-manager/hello-world-on-cloudhub) (Or you can do it later as a next step), you need to go to `"Manage Application"` > `"Properties"` to set all environment variables detailed in **Properties to be configured**.
+While [creating your application on CloudHub](http://www.mulesoft.org/documentation/display/current/Hello+World+on+CloudHub) (Or you can do it later as a next step), you need to go to `"Manage Application"` > `"Properties"` to set all environment variables detailed in **Properties to be configured**.
 Follow other steps defined [here](#runonpremise) and once your app is all set and started, there is no need to do anything else.
 
 ### Deploying your Anypoint Template on CloudHub <a name="deployingyouranypointtemplateoncloudhub"/>
 
-Anypoint Studio provides you with really easy way to deploy your Template directly to CloudHub, for the specific steps to do so please check this [link](https://docs.mulesoft.com/mule-fundamentals/v/3.8/deploying-mule-applications#deploy-to-the-anypoint-platform)
+Anypoint Studio provides you with really easy way to deploy your Template directly to CloudHub, for the specific steps to do so please check this [link](http://www.mulesoft.org/documentation/display/current/Deploying+Mule+Applications#DeployingMuleApplications-DeploytoCloudHub)
 
 ## Properties to be configured (With examples) <a name="propertiestobeconfigured"/>
 
