@@ -1,0 +1,635 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+    xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    <flow name="getPatientFlow" doc:id="e28b2db4-9a3d-46fa-b45a-ad12c9d873ea">
+        <logger level="INFO" doc:name="Log get patients" doc:id="310b449c-fb14-4a9b-bea9-20616b8a00ff" message="Get list of authorized patients" />
+        <os:retrieve-all-keys doc:name="Get authorized patients" doc:id="5b5628bf-cd8e-41e6-81b5-b6bd15c27fe0"
+            objectStore="Patient_object_store" />
+        <ee:transform doc:name="Create response JSON" doc:id="f321fb4d-81cc-4f02-ac2b-a096492e1ff5">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"patients": payload
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="getPatientByIdFlow" doc:id="5cd157af-3df2-4105-9ed6-11f8d745967f">
+        <os:contains doc:name="Check if Patient is authorized" doc:id="47448ca1-309c-4c23-97d1-fddf8c8364e5"
+            key="#[attributes.uriParams.id]" objectStore="Patient_object_store" />
+        <ee:transform doc:name="Prepare JSON response" doc:id="800478a0-fad6-4891-ab98-0ad08e339b1f">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"isAuthorized" : payload
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="getPatientRegisterFlow" doc:id="5dfa741c-fa43-442b-907c-7c6b745188aa">
+        <ee:transform doc:name="Set variables" doc:id="ceeca7e9-d97d-45dd-8de9-c82e3f1073f3">
+            <ee:message>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="accessCode"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.code]]></ee:set-variable>
+                <ee:set-variable variableName="patientId"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.id]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" doc:name="Log Access code" doc:id="35c03cd7-9945-4464-994c-db4d8ab80866" message="Access Code: #[vars.accessCode]" />
+        <set-payload
+            value="#[&quot;client_id=&quot; ++ p('fitbit.client.id') ++ &quot;&amp;grant_type=authorization_code&amp;redirect_uri=&quot; ++ p('fitbit.redirect.uri') ++ &quot;&amp;code=&quot; ++ vars.accessCode]"
+            doc:name="Set Payload for Getting Access Tokens from Fitbit" doc:id="153903cf-9bb4-4e03-b23d-7f8c07eafb10" />
+        <http:request method="POST" doc:name="Get Access Tokens from Fitbit" doc:id="2e4992b9-6fc8-4d9e-bdd1-6144a8726994"
+            config-ref="HTTPS_Request_config_basic" path="/oauth2/token">
+            <http:headers><![CDATA[#[output applicaton/java
+---
+{
+	"Content-Type" : "application/x-www-form-urlencoded",
+    "Host" : p('api.fitbit.host')
+}]]]></http:headers>
+        </http:request>
+        <logger level="INFO" doc:name="Log Auth token response" doc:id="0bac03ac-edb8-40e4-a4fd-7b96f08f9cb0"
+            message="Auth token response: #[payload]" />
+        <flow-ref doc:name="saveTokensSubFlow" doc:id="0ff99dd3-ddf5-45af-8542-6b918b5d4267" name="saveTokensSubFlow" />
+        <flow-ref doc:name="logObjectstoresSubFlow" doc:id="3f5f03ca-cbed-4cff-a174-3870c3d14dd5" name="logObjectstoresSubFlow" />
+        <logger level="INFO" doc:name="Log save tokens payload" doc:id="4c1169fd-8ecb-43ce-a75f-6e9f2110877f"
+            message="Saved tokens : #[payload]" />
+        <ee:transform doc:name="Create response JSON" doc:id="55328b4b-325b-44f1-8d12-8d96daf32a96">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Patient was registered"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <sub-flow name="saveTokensSubFlow" doc:id="149d94bc-88b9-49ee-b05a-6302c4a41df0">
+        <logger level="INFO" doc:name="Save tokens log" doc:id="070e8026-421b-4f03-8516-69e7d6f4addb" message="Save tokens for a Patient: #[vars.patientId]" />
+        <ee:transform doc:name="Token mapping" doc:id="34855bd8-b106-4b03-8493-cf571b5f5316">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	access_token: payload.access_token,
+	expires_in: payload.expires_in,
+	refresh_token: payload.refresh_token,
+	scope: payload.scope,
+	token_type: payload.token_type,
+	user_id: payload.user_id
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <scatter-gather doc:name="Scatter-Gather" doc:id="4bb0b193-324e-4338-a736-557b34e47ca5">
+            <route>
+                <logger level="INFO" doc:name="Log Access Token" doc:id="b318db76-9867-4317-b26d-3a57ee546af0"
+                    message="Access Token: #[payload.access_token]" />
+                <os:store doc:name="Save Access Token" doc:id="1551dcd1-017a-4b27-8b5c-a27e31d185d1" key='#["access_token_" ++ vars.patientId]'
+                    objectStore="Object_store">
+                    <os:value><![CDATA[#[payload.access_token]]]></os:value>
+                </os:store>
+            </route>
+            <route>
+                <logger level="INFO" doc:name="Log Refresh Token" doc:id="6273dc17-a3a2-42e3-84a2-9776f79d5492"
+                    message="Refresh token: #[payload.refresh_token]" />
+                <os:store doc:name="Save Refresh Token" doc:id="3ed71d9e-d9b6-45de-984f-32edc26e09b9"
+                    objectStore="Object_store" key='#["refresh_token_" ++ vars.patientId]'>
+                    <os:value><![CDATA[#[payload.refresh_token]]]></os:value>
+                </os:store>
+            </route>
+            <route>
+                <logger level="INFO" doc:name="Log User ID" doc:id="14530c2e-a988-42e9-a878-5332c2c1fc1e"
+                    message="User ID: #[payload.user_id]" />
+                <os:store doc:name="Save Fitbit User ID" doc:id="b52c7f96-487e-4cf6-b30f-85d95f51ecf4" key='#["user_id_" ++ vars.patientId]'
+                    objectStore="Object_store">
+                    <os:value><![CDATA[#[payload.user_id]]]></os:value>
+                </os:store>
+            </route>
+            <route>
+                <logger level="INFO" doc:name="Log Registred Patient ID" doc:id="36869666-4edd-466e-bcbf-f49626541946"
+                    message="Registred Patient ID #[vars.patientId]" />
+                <os:store doc:name="Register Patient ID" doc:id="1e5eec5b-e9a8-4db8-978e-b03279667590" key="#[vars.patientId]"
+                    objectStore="Patient_object_store">
+                    <os:value><![CDATA[#[vars.patientId]]]></os:value>
+                </os:store>
+            </route>
+        </scatter-gather>
+    </sub-flow>
+    <flow name="getPatientUnauthorizeFlow" doc:id="f75fb451-cdb6-4368-bcf2-b116df76d509">
+        <ee:transform doc:name="Set patientId" doc:id="9dfce072-b7e1-4d35-ac8b-d8e78b294482">
+            <ee:message>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="patientId"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.id]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" doc:name="Log Unauthorize patient" doc:id="06342bf7-dcf8-45bf-af69-e7708d7a4802"
+            message="Unauthorize patient: #[vars.patientId]" />
+        <os:contains doc:name="Contains Access Token" doc:id="fc0a8770-77c8-4e5c-8b15-0b5be914c2fb" key='#["access_token_" ++ vars.patientId]'
+            objectStore="Object_store" />
+        <choice doc:name="Contains Patient Access Token?" doc:id="e1ae3cc9-cc30-4ade-9a91-5a8216a994f6">
+            <when expression="#[payload]">
+                <os:retrieve doc:name="Retrieve accessToken" doc:id="31c4dbed-94ce-458b-9661-6e3e055ab255"
+                    key='#["access_token_" ++ vars.patientId]' objectStore="Object_store" target="accessToken">
+                    <os:default-value><![CDATA[#[null]]]></os:default-value>
+                </os:retrieve>
+                <set-payload value='#["token=" ++ vars.accessToken]' doc:name="Set Payload For Revoking Fitbit Token"
+                    doc:id="a82931f0-8fac-4784-8dad-93f8bb60aa7b" />
+				<http:request method="POST" doc:name="Revoke Fitbit Token" doc:id="03e66a1a-41ee-49b8-b6a8-fcaa36ff9c69" config-ref="HTTPS_Request_config_basic" path="/oauth2/revoke">
+					<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	"Content-Type" : "application/x-www-form-urlencoded",
+	"Host" : p('api.fitbit.host')
+}]]]></http:headers>
+				</http:request>
+				<flow-ref doc:name="removePatientDetailsSubFlow" doc:id="35fc81ce-b372-4949-acb7-0a7da5537cdd" name="removePatientDetailsSubFlow"/>
+				<flow-ref doc:name="logObjectstoresSubFlow" doc:id="22f4df49-4181-40f9-9062-a41b9154bb66" name="logObjectstoresSubFlow"/>
+				<logger level="INFO" doc:name="Log success" doc:id="f146361e-7485-4972-b722-1ac7a22afc22" message="Patient unauthorized"/>
+				<ee:transform doc:name="Create response JSON" doc:id="ae3326b6-924b-48db-ba5f-35c420ed5b52" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Patient was unauthorized"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Log Patient wasn't authorized" doc:id="086ae4ae-3d13-4e38-b4fa-3ea0e14a25b9" message="Patient wasn't authorized"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="logObjectstoresSubFlow" doc:id="16961e99-bb04-4e28-8167-059568cd5e2f" >
+		<os:retrieve-all-keys doc:name="PatientObjectStore" doc:id="f8d65378-c464-4df7-9bb8-47917360a647" objectStore="Patient_object_store"/>
+		<logger level="INFO" doc:name="Log PatientObject store keys" doc:id="b204ca5e-f08b-4ae0-8d84-7315040317d0" message="PatientObject store keys: #[payload]"/>
+		<os:retrieve-all-keys doc:name="ObjectStore" doc:id="f6e7a727-9565-45b7-96d4-7211249e97f2" objectStore="Object_store"/>
+		<logger level="INFO" doc:name="Log Object store keys" doc:id="aca10041-85e3-4bb7-a396-309ead828c6b" message="Object store keys: #[payload]"/>
+	</sub-flow>
+	<flow name="getPatientDeviceFlow" doc:id="533e6b92-9030-4ad2-afa0-81e66813cefb" >
+		<logger level="INFO" doc:name="Log get FHIR Devices" doc:id="7f42e727-74e8-425d-b995-882d2b1e486e" message="Get FHIR Devices for Patient"/>
+		<ee:transform doc:name="Set patientId" doc:id="19cd0850-a0b2-4013-8625-7c3fe739660e">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="patientId"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.id]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+		<os:contains doc:name="Contains Access Token" doc:id="c2d08ca1-c118-43af-b65c-afc13d470c45" key='#["access_token_" ++ vars.patientId]' objectStore="Object_store"/>
+		<choice doc:name="Contains Patient Access Token?" doc:id="64dc23c2-a0bf-4220-93af-3b2000d508b1" >
+			<when expression="#[payload]" >
+				<flow-ref doc:name="fitbitDevicesSubFlow" doc:id="ff750ad4-435c-4b2e-a675-157b1c2ec1a1" name="fitbitDevicesSubFlow"/>
+				<choice doc:name="Success?" doc:id="b0fc2a3f-f093-4b67-af1d-6a90f406b7ef" >
+					<when expression="vars.httpStatus != 401" >
+						<logger level="INFO" doc:name="Log success" doc:id="ae22c217-3e79-4597-88cf-5a409f13e145" message="Fitbit Device data obtained."/>
+					</when>
+					<otherwise >
+						<flow-ref doc:name="automaticUnregistrationSubFlow" doc:id="9b582a99-b2fb-4a97-9eba-bbc83ab999cc" name="automaticUnregistrationSubFlow"/>
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Log access token not available" doc:id="fe4e46b0-5da8-4832-bca8-bca37879274b" message="Access Token not available. Please authorize your Fitbit account."/>
+				<ee:transform doc:name="Set response" doc:id="42618bd3-9f75-4216-9b8a-3cb263d61803" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Access Token not available. Please authorize your Fitbit account."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="fitbitDevicesSubFlow" doc:id="1f474fea-54fb-4422-ab6e-a404c4dc2b1f" >
+		<logger level="INFO" doc:name="Log get Devices data" doc:id="f0673c4d-7130-46e4-9fc6-a09da1df7148" message="Get Fitbit Devices data for patient: #[vars.patientId]"/>
+		<os:retrieve doc:name="Retrieve accessToken" doc:id="a04fff65-ed08-413e-9bc1-a72dbf9763b8" key='#["access_token_" ++ vars.patientId]' objectStore="Object_store" target="accessToken">
+			<os:default-value ><![CDATA[#[null]]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="Retrieve userId" doc:id="0aec3efc-3cf1-4951-ad34-680dc4a1d65c" key='#["user_id_" ++ vars.patientId]' objectStore="Object_store" target="userId">
+			<os:default-value ><![CDATA[#[null]]]></os:default-value>
+		</os:retrieve>
+		<set-variable value='#["/1/user/" ++ vars.userId ++ "/devices.json"]' doc:name="Set URL for Devices" doc:id="b8857d16-b7cd-44dd-b11e-ad8b6261a59d" variableName="devicesURL"/>
+		<logger level="INFO" doc:name="Log Fitbit URL Devices" doc:id="fc251c7d-e401-4ea7-9118-5dfa46529b74" message="Fitbit URL Devices : #[vars.devicesURL] -- accessToken:  #[vars.accessToken]"/>
+		<http:request method="GET" doc:name="Request devices data" doc:id="f7a995f3-c741-496f-9a71-5482db19f6d3" config-ref="HTTPS_Request_config_bearer" path="#[vars.devicesURL]">
+			<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Host" : p('api.fitbit.host')
+}]]]></http:headers>
+		</http:request>
+		<choice doc:name="Success?" doc:id="470b5647-c136-4f5c-98e8-82b78d3da4c3" >
+			<when expression="attributes.statusCode == 200" >
+				<logger level="INFO" doc:name="Log Devices data" doc:id="6047fb80-7091-48d3-a758-c1fd5b7399ba" message="Devices data: #[payload]"/>
+				<ee:transform doc:name="Set Tracker ID to variable" doc:id="ad65da08-ffb7-4792-8c8b-913e4fa6bc22" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="trackerId" ><![CDATA[%dw 2.0
+output application/java
+---
+(payload filter ($['type'] == 'TRACKER')).id default null]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<os:store doc:name="Save Tracker ID from variable" doc:id="75020189-4df9-47f4-8d98-1198a8678d1b" key='#["tracker_id_" ++ vars.patientId]' objectStore="Object_store">
+					<os:value ><![CDATA[#[if (vars.trackerId == null or isEmpty(vars.trackerId)) '' else vars.trackerId[0]]]]></os:value>
+				</os:store>
+				<ee:transform doc:name="Transform Devices data to FHIR" doc:id="044aaaa6-98c3-4a2b-a458-ba19a7816ebe" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	resourceType: "Bundle",
+	'type': "searchset",
+	link: [{
+		relation: "self",
+		url: p('baseUri') ++ "Patient/" ++ vars.patientId ++ "/Device"
+	}],
+	meta: {
+		lastUpdated: now()
+	},
+	total: sizeOf(payload),
+	entry: if (sizeOf(payload) > 0) payload map (
+		{
+			fullUrl: p('baseUri') ++ "/Device/" ++ $.id,
+			resource: {
+				"resourceType": "Device",
+				"patient": {
+				  "reference": ["Patient", vars.patientId] joinBy "/"
+				},
+				("identifier": [ 
+			    {
+			      	"value": $.id
+			    }]) if ($.id != null),
+				"manufacturer": "Fitbit, Inc.",
+				"model": $.deviceVersion,
+				"type": {
+			    	"text": $['type']
+			  	},
+			  	"contact": [{
+					"system": "other",
+					"value": "https://www.fitbit.com/"
+			    }]
+			}
+	})  else []
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="401" doc:name="Set httpStatus" doc:id="786a2122-48f7-4184-8527-f9a31e4f3d7f" variableName="httpStatus"/>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="automaticUnregistrationSubFlow" doc:id="0ee66772-e4d8-455c-9d61-904c8b161800" >
+		<logger level="INFO" doc:name="Log invalid access token" doc:id="8b666eee-51c4-41ef-907d-77fbf1a8a9b2" message="Access token invalid or expired. Patient #[vars.patientId] will be unregistered."/>
+		<flow-ref doc:name="removePatientDetailsSubFlow" doc:id="87175cbb-1799-4bca-9d75-636af3eb8584" name="removePatientDetailsSubFlow"/>
+		<ee:transform doc:name="Set response" doc:id="42618bd3-9f75-4216-9b8a-3cb263d61803" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Access token invalid or expired. Please, authorize your Fitbit account again."
+}
+]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+    <sub-flow name="removePatientDetailsSubFlow" doc:id="b1b5ff8c-4565-462f-9073-62c699b22db6" >
+        <os:remove doc:name="Remove Patient" doc:id="fc19acaf-5aa3-4eb5-8220-368c6110d75c" key="#[vars.patientId]" objectStore="Patient_object_store"/>
+        <os:remove doc:name="Remove Access Token" doc:id="bb1d31f7-4b4b-4b2a-ab0c-ec62b99cbacc" key='#["access_token_" ++ vars.patientId]' objectStore="Object_store"/>
+        <os:remove doc:name="Remove Refresh Token" doc:id="d3e938a3-23b2-470f-a93f-c97b87541bfd" key='#["refresh_token_" ++ vars.patientId]' objectStore="Object_store"/>
+        <os:remove doc:name="Remove Fitbit User ID" doc:id="650bca03-c0d1-45af-96b9-9dda341499b6" key='#["user_id_" ++ vars.patientId]' objectStore="Object_store"/>
+        <os:contains doc:name="Contains tracker ID" doc:id="dff5f7eb-1b71-424d-be12-fcceff717e2c" key='#["tracker_id_" ++ vars.patientId]' objectStore="Object_store"/>
+		<choice doc:name="Contains tracker ID?" doc:id="526256d9-d38e-4233-bee5-1bbda1d782a7" >
+			<when expression="#[payload]" >
+				<os:remove doc:name="Remove Tracker ID" doc:id="04ffbdf9-d96e-49fd-b16f-bee2335ecf8c"  key='#["tracker_id_" ++ vars.patientId]' objectStore="Object_store" />
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="c346d268-8ddb-40c8-b0c8-b380ce0cdb35" />
+			</otherwise>
+		</choice>
+    </sub-flow>
+	<flow name="getPatientObservationFlow" doc:id="1c238f54-a6d2-47ef-a603-e00278ba9b38" >
+		<logger level="INFO" doc:name="Log get FHIR Observations" doc:id="fb35024d-50c8-4ecd-9911-b7a0f8aef3f0" message="Get FHIR Observations for patient"/>
+		<ee:transform doc:name="Prepare variables" doc:id="66f06a24-313e-42a9-95af-11fb7b158c5d">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="patientId"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.id]]></ee:set-variable>
+						<ee:set-variable variableName="baseDate"><![CDATA[%dw 2.0
+output application/java
+var dateParam = attributes.queryParams.date
+---
+if (dateParam startsWith "eq") dateParam [2 to -1] else "today"]]></ee:set-variable>
+						<ee:set-variable variableName="endDate"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.date[2 to -1]]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+		<os:contains doc:name="Contains Access Token" doc:id="701ae0f9-381d-40c1-ae0e-4157ece4609e" key='#["access_token_" ++ vars.patientId]' objectStore="Object_store"/>
+		<choice doc:name="Contains Patient Access Token?" doc:id="cf97dbd8-1318-4544-95cf-7006045fabdd" >
+			<when expression="#[payload]" >
+				<flow-ref doc:name="fitbitDevicesSubFlow" doc:id="e956a8f4-e17e-48c4-8554-b14cd7b213a4" name="fitbitDevicesSubFlow"/>
+				<choice doc:name="Success?" doc:id="c21ba77e-1f97-4feb-ba65-7511429e6b9e" >
+					<when expression="vars.httpStatus != 401" >
+						<os:retrieve doc:name="Retrieve Tracker ID" doc:id="da93558f-7001-41e7-8deb-1e4925a847df" key='#["tracker_id_" ++ vars.patientId]' objectStore="Object_store" target="trackerId"/>
+						<flow-ref doc:name="fitbitActivitySubFlow" doc:id="bb309897-0b79-4ece-a16b-260e2e843c5a" name="fitbitActivitySubFlow"/>
+						<ee:transform doc:name="Store activityFhirData" doc:id="6aca0615-05fd-4a39-addb-5e400cc34f6f" >
+							<ee:message >
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.httpStatus]]></ee:set-variable>
+								<ee:set-variable variableName="activityFhirData" ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<flow-ref doc:name="fitbitSleepSubFlow" doc:id="c22a4309-1d3a-4422-a390-0d5d4b82ab28" name="fitbitSleepSubFlow"/>
+						<ee:transform doc:name="Store sleepFhirData" doc:id="6764ef07-4079-499a-a037-e4434b7592fd" >
+							<ee:message >
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.httpStatus]]></ee:set-variable>
+								<ee:set-variable variableName="sleepFhirData" ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<choice doc:name="Success?" doc:id="23328f70-b81f-4605-8fca-11856b305a4c" >
+							<when expression="vars.httpStatus != 401" >
+								<ee:transform doc:name="Prepare Observations" doc:id="3f845260-ce18-4468-9a82-9b8467f31a2c" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+using (obs = (vars.activityFhirData ++ vars.sleepFhirData)){
+	resourceType: "Bundle",
+	'type': "searchset",
+	link: [{
+		relation: "self",
+		url: p('baseUri') ++ "Patient/" ++ vars.patientId ++ "/Observation"
+	}],
+	meta: {
+		lastUpdated: now()
+	},
+	total: sizeOf(obs),
+	entry: if (sizeOf(obs) > 0) obs else []
+}]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+							</when>
+							<otherwise >
+								<flow-ref doc:name="automaticUnregistrationSubFlow" doc:id="45655827-5371-4f69-8a05-b456a7692398" name="automaticUnregistrationSubFlow"/>
+							</otherwise>
+						</choice>
+					</when>
+					<otherwise >
+						<flow-ref doc:name="automaticUnregistrationSubFlow" doc:id="89f8610a-331a-455c-979a-65eb63203db6" name="automaticUnregistrationSubFlow"/>
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Log access token not available" doc:id="4ed0950a-e5bc-4fde-b5b9-49dd63d5254f" message="Access Token not available. Please authorize your Fitbit account."/>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="fitbitActivitySubFlow" doc:id="85a2e156-8fed-426d-9854-48f3404d8115" >
+		<logger level="INFO" doc:name="Log get Activity data" doc:id="2eb77191-b492-439d-8851-0ec7701291e7" message="Get Fitbit Activity data for patient: #[vars.patientId]"/>
+		<os:retrieve doc:name="Retrieve accessToken" doc:id="74f5e1ac-d3d4-4268-a6ce-0a614400cb89" key='#["access_token_" ++ vars.patientId]' objectStore="Object_store" target="accessToken">
+			<os:default-value ><![CDATA[#[null]]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="Retrieve userId" doc:id="092cd8e7-e0b9-459e-9c71-ec48882c0757" key='#["user_id_" ++ vars.patientId]' objectStore="Object_store" target="userId">
+			<os:default-value ><![CDATA[#[null]]]></os:default-value>
+		</os:retrieve>
+		<set-variable value='#["/1/user/" ++ vars.userId ++ "/activities/tracker/steps/date/" ++ vars.baseDate ++ "/" ++ vars.endDate ++ ".json"]' doc:name="Set URL for Daily Activity" doc:id="7752fd3f-347b-4a07-906a-dbcc46546bc1" variableName="activityURL"/>
+		<logger level="INFO" doc:name="Log Fitbit URL Daily Activity" doc:id="d9cceaf4-6be1-4560-81fa-acebdf29c35b" message="Fitbit URL Activity : #[vars.activityURL]"/>
+		<http:request method="GET" doc:name="Request daily activity data" doc:id="2f4f339b-09cc-43a8-8e7d-709993e1381e" config-ref="HTTPS_Request_config_bearer" path="#[vars.activityURL]">
+			<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Host" : p('api.fitbit.host')
+}]]]></http:headers>
+		</http:request>
+		<choice doc:name="Success?" doc:id="9a9ccaf7-ac13-4e29-a703-5ee2e6cdfeb0" >
+			<when expression="attributes.statusCode == 200" >
+				<logger level="INFO" doc:name="Log Daily activity data" doc:id="8b5529f0-0a07-4139-abda-97cb85f8e0cc" message="Daily activity data: #[payload] with Device: #[vars.trackerId]"/>
+				<ee:transform doc:name="Transform JSON to Java object" doc:id="f6f67e18-126b-4982-b96a-e35c8bb59f6d" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<ee:transform doc:name="Transform Daily activity data to FHIR" doc:id="625f5d53-9012-478a-8c11-0e6ca5e8d89e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload."activities-tracker-steps" map {
+	fullUrl: p('baseUri') ++ "Observation/noId",
+	resource: {
+		"resourceType": "Observation",
+		"subject": {
+		  "reference": ["Patient", vars.patientId] joinBy "/"
+		},		
+		"text": {
+			"status": "empty",
+			"div": ""
+		},
+		("device": {
+			"reference": ["Device", vars.trackerId] joinBy "/"
+		}) if vars.trackerId != "",
+		"effectiveDateTime": $.dateTime,
+		"status": "final",
+		"code": {
+		  "coding": [
+		    {
+		      "system": "https://rtmms.nist.gov",
+		      "code": "8454247",
+		      "display": "MDC_HF_DISTANCE"
+		    }
+		  ]
+		},
+		"valueQuantity": {
+		    "value": $.value,
+		    "unit": "MDC_DIM_STEP"
+	  	}
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="401" doc:name="Set httpStatus" doc:id="0c7105c6-469f-4ada-a820-4d91ef78b168" variableName="httpStatus"/>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="fitbitSleepSubFlow" doc:id="b978c07c-0e67-4de9-b2c5-a99e84a4e0b6" >
+		<logger level="INFO" doc:name="Log get Sleep data" doc:id="22da0ef2-fed2-4294-8272-2cd9551793a4" message="Get Fitbit Sleep data for patient: #[vars.patientId]"/>
+		<os:retrieve doc:name="Retrieve accessToken" doc:id="b87a1c34-7dcf-4f10-b6f5-e8be84c4defc" key='#["access_token_" ++ vars.patientId]' objectStore="Object_store" target="accessToken">
+			<os:default-value ><![CDATA[#[null]]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="Retrieve userId" doc:id="6f5e374a-5e1c-4b67-84cf-1f7a56256551" key='#["user_id_" ++ vars.patientId]' objectStore="Object_store" target="userId">
+			<os:default-value ><![CDATA[#[null]]]></os:default-value>
+		</os:retrieve>
+		<set-variable value='#["/1/user/" ++ vars.userId ++ "/sleep/minutesAsleep/date/" ++ vars.baseDate ++ "/" ++ vars.endDate ++ ".json"]' doc:name="Set URL for Sleep" doc:id="f5e83f49-134d-41dc-ad7c-ee20d0a4de37" variableName="sleepURL"/>
+		<logger level="INFO" doc:name="Log Fitbit URL Sleep" doc:id="246950dd-72f8-45df-b4e7-a5a4237b6058" message="Fitbit URL Sleep : #[vars.sleepURL]"/>
+		<http:request method="GET" doc:name="Request sleep data" doc:id="31b25674-5e0e-4626-8783-e677ba9019e6" config-ref="HTTPS_Request_config_bearer" path="#[vars.sleepURL]">
+			<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.accessToken,
+	"Host" : p('api.fitbit.host')
+}]]]></http:headers>
+		</http:request>
+		<choice doc:name="Success?" doc:id="97284e51-9ec4-4bf4-8fb7-0ff91d3c1524">
+			<when expression="attributes.statusCode == 200" >
+				<logger level="INFO" doc:name="Log Sleep data" doc:id="80bdaf2b-e25b-4b00-8d9a-7803419f6675" message="Sleep Data: #[payload] with Device: #[vars.trackerId]"/>
+				<ee:transform doc:name="Transform JSON to Java object" doc:id="16403baa-74a1-413e-a9c5-0e437a4c77a1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<ee:transform doc:name="Transform Sleep data to FHIR" doc:id="c1482ffb-8bde-4ae7-a2d9-989736f3bad1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload."sleep-minutesAsleep" map {
+	fullUrl: p('baseUri') ++ "Observation/noId",
+	resource: {	
+		"resourceType": "Observation",
+		"subject": {
+			"reference": ["Patient", vars.patientId] joinBy "/"
+		},		
+		"text": {
+        	"status": "empty",
+        	"div": ""
+    	},
+		("device": {
+			"reference": ["Device", vars.trackerId] joinBy "/"
+		}) if vars.trackerId != "",
+		"effectiveDateTime": $.dateTime,
+		"status": "final",
+		"code": {
+			"coding": [
+		    {
+				"system": "https://rtmms.nist.gov",
+				"code": "8455148",
+				"display": "MDC_HF_ACT_SLEEP"
+			}
+		  ]
+		},
+		"valueQuantity": {
+			"value": $.value,
+			"unit": "MDC_DIM_MIN"
+		}
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="401" doc:name="Set httpStatus" doc:id="0c7105c6-469f-4ada-a820-4d91ef78b168" variableName="httpStatus" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="fitbit-tokenRefresh" doc:id="fbc54dc6-2dda-4b1e-ae04-2a0d5760854b" >
+		<scheduler doc:name="Scheduler" doc:id="2a938eb2-046c-42a5-bcf6-10934128dec2" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="${token.refresh.poll.frequencyMinutes}" startDelay="${token.refresh.poll.startDelayMinutes}" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Log Refreshing Token time" doc:id="c73bcf42-7c98-48fc-8f5f-6258a6500922" message="Refreshing Token at #[now()]"/>
+		<os:retrieve-all-keys doc:name="Retrieve all registered Patient IDs" doc:id="520985e4-7623-41ed-a171-61a2ef62dc7e" objectStore="Patient_object_store"/>
+		<logger level="INFO" doc:name="Log Registered patient IDs" doc:id="b8b15c17-0602-4903-aa36-3c2fc3d2cce4" message="Registered patient IDs #[payload]"/>
+		<foreach doc:name="For Each" doc:id="b71fb37d-1fd8-4e7f-be60-9507abadc570" collection="payload">
+			<set-variable value="#[payload]" doc:name="Retrieved key" doc:id="4dade942-894a-4d36-93e4-e2d85f826aeb" variableName="patientId"/>
+			<os:retrieve doc:name="Get Refresh Token" doc:id="6bd153d4-ce2f-472f-8e4d-4ab3f92b61a6" key='#["refresh_token_" ++ vars.patientId]' objectStore="Object_store" target="refreshToken"/>
+			<set-payload value='#["grant_type=refresh_token&amp;refresh_token=" ++ vars.refreshToken]' doc:name="Set Payload For Refreshing Fitbit Token" doc:id="c5d84ed5-7e46-445e-a779-1e142269ecb9" />
+			<http:request method="POST" doc:name="Refresh Token with Fitbit" doc:id="3ded14b1-052b-40c6-91ec-95bc72e394db" config-ref="HTTPS_Request_config_basic" path="/oauth2/token">
+				<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	"Content-Type" : "application/x-www-form-urlencoded",
+	"Host" : p('api.fitbit.host')
+}]]]></http:headers>
+			</http:request>
+			<choice doc:name="Success?" doc:id="aa1d4365-d728-49f3-8080-0b9727f68ff1" >
+				<when expression="attributes.statusCode == 200" >
+					<flow-ref doc:name="saveTokensSubFlow" doc:id="cbb61273-37ba-429a-86b8-f91c05d36ed7" name="saveTokensSubFlow"/>
+				</when>
+				<otherwise >
+					<logger level="INFO" doc:name="Log refresh token invalid" doc:id="7cc577f3-3e24-468c-bcaf-d2d0e970ed34" message="Refresh token invalid or expired. Patient #[vars.patientId] will be unauthorized."/>
+					<flow-ref doc:name="removePatientDetailsSubFlow" doc:id="f1fab22f-01d8-412b-b2ef-05e994e50ad1" name="removePatientDetailsSubFlow"/>
+				</otherwise>
+			</choice>
+		</foreach>
+	</flow>
+
+</mule>
