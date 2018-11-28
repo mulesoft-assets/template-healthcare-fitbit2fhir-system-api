@@ -8,8 +8,8 @@ uses:
   FHIR_bundle_types: ./fhir_bundle_types.raml
 
 types: 
-  Device: !include /exchange_modules/47f07e0a-f578-47d4-9591-d9e7afffb0fc.healthcare/device/1.0.3/device.raml
-  Observation: !include /exchange_modules/47f07e0a-f578-47d4-9591-d9e7afffb0fc.healthcare/observation/1.0.2/observation.raml
+  Device: !include /exchange_modules/a06c5779-bccc-4b0e-b90b-96933206e3c1/observation/1.0.0/observation.raml
+  Observation: !include /exchange_modules/a06c5779-bccc-4b0e-b90b-96933206e3c1/observation/1.0.0/observation.raml
 
 #Fitbit
   FitbitMessage: 
@@ -29,28 +29,28 @@ types:
 
 ### API definition ###
 /Patient:
-  displayName: Patients authorized to Fitbit
   get:
+    displayName: Patients authorized to Fitbit
     responses: 
       200:  
         body: 
           application/json:
             type: FitbitAuthorizedPatients
   /{id}:
-    displayName: Get Authorization info about Patient
     uriParameters:
       id:
         type: string|integer
         description: Patient ID
     get:
+      displayName: Get Authorization info about Patient
       responses: 
         200:  
           body: 
             application/json:
               type: FitbitPatientAuthorizationInfo
     /register:
-      displayName: Register Fitbit account
       get:
+        displayName: Register Fitbit account
         description: Register patient's Fitbit account
         queryParameters:
           code:
@@ -63,16 +63,16 @@ types:
               application/json:
                 type: FitbitMessage
     /unauthorize:
-      displayName: Unauthorize Fitbit user
       get:
+        displayName: Unauthorize Fitbit user
         responses: 
           200:  
             body: 
               application/json:
                 type: FitbitMessage
     /Observation:
-      displayName: Fitbit observations in FHIR structure
       get:
+        displayName: Fitbit observations in FHIR structure
         description: Get fitbit activity and sleep observations for given patient in FHIR structure
         queryParameters:
           date:
@@ -90,8 +90,8 @@ types:
               application/json:
                 type: FitbitMessage
     /Device:
-      displayName: Fitbit devices in FHIR structure
       get:
+        displayName: Fitbit devices in FHIR structure
         responses: 
           200:  
             body: 

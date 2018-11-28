@@ -1,54 +1,64 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:os="http://www.mulesoft.org/schema/mule/os"
-    xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-    xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
 http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd 
 http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
 
-    <configuration-properties doc:name="Configuration properties" doc:id="91b9a5c6-8ffe-466f-bb78-dd1d7de151d9"
-        file="mule-artifact.properties" />
-    <configuration-properties doc:name="Configuration properties" doc:id="b23a56fd-6baa-4203-8cee-c218cff0b23d"
-        file="common.properties" />
-    <configuration-properties doc:name="Configuration properties" doc:id="91b9a5c6-8ffe-466f-bb78-dd1d7de151d9"
-        file="mule.${mule.env}.properties" />
+	<configuration-properties doc:name="Configuration properties"
+		doc:id="b23a56fd-6baa-4203-8cee-c218cff0b23d" file="common.properties" />
+	<configuration-properties doc:name="Configuration properties"
+		doc:id="91b9a5c6-8ffe-466f-bb78-dd1d7de151d9" file="mule.${mule.env}.properties" />
 
-    <apikit:config name="healthcare_fitbit2fhir_system_api-config" raml="healthcare_fitbit2fhir_system_api.raml"
-        outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" doc:name="Router" />
+	<apikit:config name="healthcare_fitbit2fhir_system_api-config"
+		raml="healthcare_fitbit2fhir_system_api.raml" outboundHeadersMapName="outboundHeaders"
+		httpStatusVarName="httpStatus" doc:name="Router" />
 
-    <http:listener-config name="healthcare_fitbit2fhir_system_api-httpListenerConfig" doc:name="HTTPS Listener config">
-        <http:listener-connection host="0.0.0.0" port="${https.port}" tlsContext="TLS_Context"
-            protocol="HTTPS" />
-    </http:listener-config>
+	<http:listener-config
+		name="healthcare_fitbit2fhir_system_api-httpListenerConfig" doc:name="HTTPS Listener config">
+		<http:listener-connection host="0.0.0.0"
+			port="${https.port}" tlsContext="TLS_Context" protocol="HTTPS" />
+	</http:listener-config>
 
-    <tls:context name="TLS_Context" doc:name="TLS Context" doc:id="7bf21f3a-d8e6-46e0-bb12-0dc260d38a08">
-        <tls:key-store type="jks" path="${keystore.location}" alias="${key.alias}" keyPassword="${key.password}"
-            password="${keystore.password}" />
-    </tls:context>
+	<tls:context name="TLS_Context" doc:name="TLS Context"
+		doc:id="7bf21f3a-d8e6-46e0-bb12-0dc260d38a08">
+		<tls:key-store type="jks" path="${keystore.location}"
+			alias="${key.alias}" keyPassword="${key.password}" password="${keystore.password}" />
+	</tls:context>
 
-    <http:request-config name="HTTPS_Request_config_basic" enableCookies="false" doc:name="HTTPS Request config">
-        <http:request-connection host="${api.fitbit.host}" port="443" protocol="HTTPS">
-            <http:authentication>
-                <http:basic-authentication username="${fitbit.client.id}" password="${fitbit.client.secret}" />
-            </http:authentication>
-        </http:request-connection>
-    </http:request-config>
+	<http:request-config name="HTTPS_Request_config_basic"
+		enableCookies="false" doc:name="HTTPS Request config">
+		<http:request-connection host="${api.fitbit.host}"
+			port="443" protocol="HTTPS">
+			<http:authentication>
+				<http:basic-authentication username="${fitbit.client.id}"
+					password="${fitbit.client.secret}" />
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
 
-    <http:request-config name="HTTPS_Request_config_bearer" enableCookies="false" doc:name="HTTPS Request config2">
-        <http:request-connection host="${api.fitbit.host}" port="443" protocol="HTTPS">
-        </http:request-connection>
-    </http:request-config>
-    
-    <os:config name="ObjectStore" doc:name="ObjectStore" doc:id="2f80ed4d-cccc-49f7-b190-f2abbbd8d7fe" />
-    <os:config name="PatientObjectStore" doc:name="PatientObjectStore" doc:id="4f0e1ee2-9ab2-4b62-964d-77517281f162" />
-    <os:object-store name="Object_store" doc:name="Object store" doc:id="1c0de916-bae6-47bc-8b70-aeba95b040f9"
-        config-ref="ObjectStore" />
-    <os:object-store name="Patient_object_store" doc:name="Patient Object store" doc:id="5565bc93-629c-4413-8d0c-4a18d1709789"
-        config-ref="PatientObjectStore" />
+	<http:request-config name="HTTPS_Request_config_bearer"
+		enableCookies="false" doc:name="HTTPS Request config2">
+		<http:request-connection host="${api.fitbit.host}"
+			port="443" protocol="HTTPS">
+		</http:request-connection>
+	</http:request-config>
+
+	<os:config name="ObjectStore" doc:name="ObjectStore"
+		doc:id="2f80ed4d-cccc-49f7-b190-f2abbbd8d7fe" />
+	<os:config name="PatientObjectStore" doc:name="PatientObjectStore"
+		doc:id="4f0e1ee2-9ab2-4b62-964d-77517281f162" />
+	<os:object-store name="Object_store" doc:name="Object store"
+		doc:id="1c0de916-bae6-47bc-8b70-aeba95b040f9" config-ref="ObjectStore" />
+	<os:object-store name="Patient_object_store" doc:name="Patient Object store"
+		doc:id="5565bc93-629c-4413-8d0c-4a18d1709789" config-ref="PatientObjectStore" />
+	<global-property doc:name="Global Property" doc:id="141b7905-57a8-4e91-a4b3-43fa0df59bee" name="mule.env" value="dev" />
 
 </mule>
