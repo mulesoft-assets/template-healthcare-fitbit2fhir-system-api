@@ -22,7 +22,7 @@ Please review the terms of the license before downloading and using this templat
 
 As a FitBit user I want a microservice to access data from the FitBit system and transform them to FHIR standard.
 
-Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 1.0.2 DSTU2](https://www.hl7.org/FHIR/DSTU2/index.html).
+Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 3.0.1 STU3](https://www.hl7.org/FHIR/index.html).
 
 # Considerations <a name="considerations"/>
 
