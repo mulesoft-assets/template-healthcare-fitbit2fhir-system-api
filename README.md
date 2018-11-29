@@ -22,7 +22,7 @@ Please review the terms of the license before downloading and using this templat
 
 As a FitBit user I want a microservice to access data from the FitBit system and transform them to FHIR standard.
 
-Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 1.0.2 DSTU2](https://www.hl7.org/FHIR/DSTU2/index.html).
+Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 3.0.1 STU3](https://www.hl7.org/FHIR/index.html).
 
 # Considerations <a name="considerations"/>
 
@@ -109,25 +109,8 @@ In order to use this Mule Anypoint Template you need to configure properties (Cr
 + baseUri `baseUri.of.your.app/api/`
 
 	**Note:** You should encode the fitbit.redirect.uri
+	
 + api.fitbit.host `api.fitbit.com`
 + fitbit.redirect.uri `redirect.uri.defined.also.on.fitbit.side`
 + fitbit.client.id `12345`
 + fitbit.client.secret `fsd5fd45fs5d4f45sdf5d`
-
-+ api.version `api_version`
-+ api.name `api_name`
-+ api.id `api_id`
-
-+ anypoint.platform.client_id `anypoint_platform_client_id`
-+ anypoint.platform.client_secret `anypoint_platform_client_secret`
-
-### Test properties
-
-Test properties contains except the properties listed above these additional properties:
-
-+ truststore.location `truststore.jks`
-+ truststore.password `truststorePassword123`
-
-	**Note:** Truststore is used for requesting this API in the test flows.
-
-	**Note:** *anypoint.platform.client_id* and *anypoint.platform.client_secret* properties are not necessary for testing
