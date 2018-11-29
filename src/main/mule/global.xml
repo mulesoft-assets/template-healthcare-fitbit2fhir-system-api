@@ -12,6 +12,7 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
 
+	<global-property doc:name="Global Property" doc:id="5139ec05-5a76-43d4-8217-4d64acee92bb" name="mule.env" value="dev" />
 	<configuration-properties doc:name="Configuration properties"
 		doc:id="b23a56fd-6baa-4203-8cee-c218cff0b23d" file="common.properties" />
 	<configuration-properties doc:name="Configuration properties"
@@ -59,6 +60,5 @@ http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/cu
 		doc:id="1c0de916-bae6-47bc-8b70-aeba95b040f9" config-ref="ObjectStore" />
 	<os:object-store name="Patient_object_store" doc:name="Patient Object store"
 		doc:id="5565bc93-629c-4413-8d0c-4a18d1709789" config-ref="PatientObjectStore" />
-	<global-property doc:name="Global Property" doc:id="141b7905-57a8-4e91-a4b3-43fa0df59bee" name="mule.env" value="dev" />
 
 </mule>
