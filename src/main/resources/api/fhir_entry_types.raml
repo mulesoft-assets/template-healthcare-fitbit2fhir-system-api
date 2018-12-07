@@ -1,7 +1,7 @@
 #%RAML 1.0 Library
 
 uses:
-  FHIR_commons: /exchange_modules/a06c5779-bccc-4b0e-b90b-96933206e3c1/fhir_commons/1.0.0/fhir_commons.raml
+  FHIR_commons: /exchange_modules/org.mule.templates/fhir-commons/1.0.0/fhir_commons.raml
 
 types:
   Entry:
@@ -44,9 +44,9 @@ types:
   DeviceEntry:
     type: Entry
     properties:
-      resource?: !include /exchange_modules/a06c5779-bccc-4b0e-b90b-96933206e3c1/device/1.0.0/device.raml
+      resource?: !include /exchange_modules/org.mule.templates/device/1.0.0/device.raml
 
   ObservationEntry:
     type: Entry
     properties:
-       resource?: !include /exchange_modules/a06c5779-bccc-4b0e-b90b-96933206e3c1/observation/1.0.0/observation.raml
+       resource?: !include /exchange_modules/org.mule.templates/observation/1.0.0/observation.raml
