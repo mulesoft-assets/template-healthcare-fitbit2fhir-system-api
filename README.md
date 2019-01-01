@@ -1,116 +1,104 @@
 # Template Healthcare Fitbit to FHIR System API
 
-+ [License Agreement](#licenseagreement)
-+ [Use Case](#usecase)
-+ [Considerations](#considerations)
-	* [Cloudhub security considerations](#cloudhubsecurityconsiderations)
-	* [APIs security considerations](#apissecurityconsiderations)
-+ [Run it!](#runit)
-	* [Running on premise](#runonopremise)
-	* [Running on Studio](#runonstudio)
-	* [Running on Mule ESB stand alone](#runonmuleesbstandalone)
-	* [Running on CloudHub](#runoncloudhub)
-	* [Deploying your Anypoint Template on CloudHub](#deployingyouranypointtemplateoncloudhub)
-	* [Creating externally reachable proxy and applying policies](#proxy)
-	* [Properties to be configured (With examples)](#propertiestobeconfigured)
+System APIs abstract away the complexity of core systems of record from end user data, while providing downstream insulation from any interface changes or rationalization of those systems. This API provides an implementation best practice to expose fitness data via a set of RESTful FHIR services in RAML, making it easy to consume within an enterprise.
 
-# License Agreement <a name="licenseagreement"/>
-Note that using this template is subject to the conditions of this [License Agreement](AnypointTemplateLicense.pdf).
-Please review the terms of the license before downloading and using this template. In short, you are allowed to use the template for free with Mule ESB Enterprise Edition, CloudHub, or as a trial in Anypoint Studio.
+![](https://www.lucidchart.com/publicSegments/view/6c0eab9d-b684-43bd-96c5-61b323fd6399/image.png)
 
-# Use Case <a name="usecase"/>
+## Catalyst Accelerator for Healthcare
+This FHIR implementation is one of many components included in [Catalyst Accelerator for Healthcare](/exchange/68ef9520-24e9-4cf2-b2f5-620025690913/catalyst-accelerator-for-healthcare/). It provides organizations with connectivity assets that accelerate project delivery in healthcare, including pre-built API designs and implementations that support core healthcare business processes. Contact [info@mulesoft.com](mailto:info@mulesoft.com) for more information.
+
+# License Agreement
+
+This template is subject to the conditions of the <a href="https://s3.amazonaws.com/templates-examples/AnypointTemplateLicense.pdf">MuleSoft License Agreement</a>. Review the terms of the license before downloading and using this template. You can use this template for free with the Mule Enterprise Edition, CloudHub, or as a trial in Anypoint Studio. 
+
+# Use Case
 
 As a FitBit user I want a microservice to access data from the FitBit system and transform them to FHIR standard.
 
 Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 3.0.1 STU3](https://www.hl7.org/FHIR/index.html).
 
-# Considerations <a name="considerations"/>
+# Considerations
 
-To make this Anypoint Template run, there are certain preconditions that must be considered. **Failing to do so could lead to unexpected behavior of the template.**
-Use Anypoint Studio v7.1.4+ and Mule ESB 4.1.1+ to run this template.
+To make this Anypoint Template run, there are certain preconditions that must be considered. Failing to do so can lead to unexpected behavior of the template.
+
+Use Anypoint Studio v7.1.4 and later and Mule Runtime 4.1.1 and later to run this template.
 
 ### Register your Fitbit Application
 
-Firstly you need to create a new developer app at http://dev.fitbit.com/ as  the OAuth 2.0 Application Type “Server”. Note that you will need to define the Callback URL too. This is important as you would need to set this URL in property `fitbit.redirect.uri`.
+Create a new developer app at http://dev.fitbit.com/ with the OAuth 2.0 Application Type “Server”. Note that you need to define the Callback URL too. This is important as you would need to set this URL in property `fitbit.redirect.uri`.
 
-Key parameters to note once you’ve registered your app is the OAuth 2.0 Client ID, the Client (Consumer) Secret and the Redirect URI.
+Key parameters to note once you’ve registered your app is the OAuth 2.0 Client ID, the Client (Consumer) Secret, and the Redirect URI.
 
-### Running the application
+### Run the application
 
-Fitbit’s OAuth login has to be initiated from a web-browser.
-**https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=<your-client-id>&redirect_uri=<your-redirect-uri>&scope=activity%20profile%20settings%20sleep%20weight&prompt=login** would get you to the login landing page where you will fill in your email and password. After the successful login you will be redirected to the URL specified in the app at http://dev.fitbit.com/. You can notice the access code in the URL.
+Access the Fitbit OAuth login from a web browser at:
+ 
+https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=<your-client-id>&redirect_uri=<your-redirect-uri>&scope=activity%20profile%20settings%20sleep%20weight&prompt=login.
 
-To register patient to this fitbit account you need to do create the request **GET https://<your-app-domain>.cloudhub.io/Patient/{id}/register?code=<your-access-code>** where {id} represents Patient ID, who wants to authorize to Fitbit account and access code is the one obtained after login with Fitbit credentials.
+This gets you to the login landing page where you fill in your email and password. After the successful log in you are redirected to the URL specified in the app at http://dev.fitbit.com/. You can notice the access code in the URL.
 
-# Run it! <a name="runit"/>
+To register a patient to this Fitbit account you need to do create the request `GET https://<your-app-domain>.cloudhub.io/Patient/{id}/register?code=<your-access-code>` where {id} represents the Patient ID, who wants to authorize to Fitbit account and access code is the one obtained after login with Fitbit credentials.
+
+# Run it! 
 
 Simple steps to get Healthcare Fitbit to FHIR System API running.
-See below.
 
-## Running on premise <a name="runonopremise"/>
+### Where to Download Anypoint Studio and the Mule Runtime
 
-In this section we detail the way you should run your Anypoint Template on your computer.
+If you are new to Mule, download this software:
 
-### Where to Download Mule Studio and Mule ESB
+- [Download Anypoint Studio](https://www.mulesoft.com/platform/studio)
+- [Download Mule runtime](https://www.mulesoft.com/lp/dl/mule-esb-enterprise)
 
-First thing to know if you are a newcomer to Mule is where to get the tools.
+**Note:** Anypoint Studio requires JDK 8.
 
-+ You can download Mule Studio from this [Location](http://www.mulesoft.com/platform/mule-studio)
-+ You can download Mule ESB from this [Location](http://www.mulesoft.com/platform/soa/mule-esb-open-source-esb)
+### Import into Studio
 
-### Importing an Anypoint Template into Studio
+In Studio, click the Exchange X icon in the upper left of the taskbar, log in with your Anypoint Platform credentials, search for the template, and click Open.
 
-Anypoint Studio offers several ways to import a project into the workspace, for instance:
+### Run in Studio
 
-+ Anypoint Studio Project from File System
-+ Packaged mule application (.jar)
+After you import the Template into Anypoint Studio, to follow these steps to run it:
 
-You can find a detailed description on how to do so in this [Documentation Page](http://www.mulesoft.org/documentation/display/current/Importing+and+Exporting+in+Studio).
+1. Generate a keystore and set up the truststore (you can find a detailed description on how to do so in [TLS Configuration](https://docs.mulesoft.com/mule4-user-guide/v/4.1/tls-configuration#keystores-and-truststores)).
+2. Locate the properties file `mule.dev.properties`, in src/main/resources.
+3. Complete all the properties required as per the examples in "Properties to Configure".
+4. Right click your template project folder.
+6. Hover your mouse over Run As.
+6. Click Mule Application.
 
-### Running on Studio <a name="runonstudio"/>
+### Run Stand Alone
 
-Once you have imported you Anypoint Template into Anypoint Studio you need to follow these steps to run it:
+Fill in all the properties in one of the property files, for example in mule.prod.properties and run your app with the corresponding environment variable to use it. To follow the example, use `mule.env=prod`.
 
-+ Generate keystore and set up the truststore (You can find a detailed description on how to do so in this [Documentation Page](https://docs.mulesoft.com/mule4-user-guide/v/4.1/tls-configuration#keystores-and-truststores))
-+ Locate the properties file `mule.dev.properties`, in src/main/resources
-+ Complete all the properties required as per the examples in the section [Properties to be configured](#propertiestobeconfigured)
-+ Once that is done, right click on you Anypoint Template project folder
-+ Hover you mouse over `"Run as"`
-+ Click on  `"Mule Application"`
+## Run on CloudHub
 
-### Running on Mule ESB stand alone <a name="runonmuleesbstandalone"/>
+When creating your application in CloudHub, you need to go to Manage Application > Properties to set all environment variables detailed in the "Properties to Configure" section.
 
-Fill in all the properties in one of the property files, for example in [mule.prod.properties](../master/src/main/resources/mule.prod.properties) and run your app with the corresponding environment variable to use it. To follow the example, this will be `mule.env=prod`.
+### Deploy on CloudHub
 
-## Running on CloudHub <a name="runoncloudhub"/>
+In Studio, right click your project name in Package Explorer and select Anypoint Platform > Deploy on CloudHub.
 
-While [creating your application on CloudHub](http://www.mulesoft.org/documentation/display/current/Hello+World+on+CloudHub) (Or you can do it later as a next step), you need to go to `"Manage Application"` > `"Properties"` to set all environment variables detailed in **Properties to be configured**.
-Follow other steps defined [here](#runonpremise) and once your app is all set and started, there is no need to do anything else.
+## Properties to Configure
 
-### Deploying your Anypoint Template on CloudHub <a name="deployingyouranypointtemplateoncloudhub"/>
+To use this template you need to configure properties either in a properties file or in CloudHub as Environment Variables. To run the MUnit tests, the configuration file is located in the mule.test.properties.
 
-Anypoint Studio provides you with really easy way to deploy your Template directly to CloudHub, for the specific steps to do so please check this [link](http://www.mulesoft.org/documentation/display/current/Deploying+Mule+Applications#DeployingMuleApplications-DeploytoCloudHub)
+### Application Properties
 
-## Properties to be configured (With examples) <a name="propertiestobeconfigured"/>
+- https.port `8082`
+- token.refresh.poll.frequencyMinutes `30`
+- token.refresh.poll.startDelayMinutes `2`
 
-In order to use this Mule Anypoint Template you need to configure properties (Credentials, configurations, URLs etc.) either in properties file or in CloudHub as Environment Variables. To run the MUnit tests, the configuration file is located in the [mule.test.properties](../src/test/resources/mule.test.properties). Detail list with examples:
+- keystore.location `keystore.jks`
+- keystore.password `password1234`
+- key.password `password1234`
+- key.alias `alias`
 
-### Application properties
-
-+ https.port `8082`
-+ token.refresh.poll.frequencyMinutes `30`
-+ token.refresh.poll.startDelayMinutes `2`
-
-+ keystore.location `keystore.jks`
-+ keystore.password `password1234`
-+ key.password `password1234`
-+ key.alias `alias`
-
-+ baseUri `baseUri.of.your.app/api/`
+- baseUri `baseUri.of.your.app/api/`
 
 	**Note:** You should encode the fitbit.redirect.uri
 	
-+ api.fitbit.host `api.fitbit.com`
-+ fitbit.redirect.uri `redirect.uri.defined.also.on.fitbit.side`
-+ fitbit.client.id `12345`
-+ fitbit.client.secret `fsd5fd45fs5d4f45sdf5d`
+- api.fitbit.host `api.fitbit.com`
+- fitbit.redirect.uri `redirect.uri.defined.also.on.fitbit.side`
+- fitbit.client.id `12345`
+- fitbit.client.secret `fsd5fd45fs5d4f45sdf5d`
