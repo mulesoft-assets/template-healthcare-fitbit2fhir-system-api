@@ -29,11 +29,11 @@ Create a new developer app at http://dev.fitbit.com/ with the OAuth 2.0 Applicat
 
 Key parameters to note once you’ve registered your app is the OAuth 2.0 Client ID, the Client (Consumer) Secret, and the Redirect URI.
 
-### Run the application
+### Run the Application
 
 Access the Fitbit OAuth login from a web browser at:
  
-https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=<your-client-id>&redirect_uri=<your-redirect-uri>&scope=activity%20profile%20settings%20sleep%20weight&prompt=login.
+https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=activity%20profile%20settings%20sleep%20weight&prompt=login.
 
 This gets you to the login landing page where you fill in your email and password. After the successful log in you are redirected to the URL specified in the app at http://dev.fitbit.com/. You can notice the access code in the URL.
 
