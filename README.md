@@ -4,8 +4,8 @@ System APIs abstract away the complexity of core systems of record from end user
 
 ![](https://www.lucidchart.com/publicSegments/view/6c0eab9d-b684-43bd-96c5-61b323fd6399/image.png)
 
-## Catalyst Accelerator for Healthcare
-This FHIR implementation is one of many components included in [Catalyst Accelerator for Healthcare](/exchange/68ef9520-24e9-4cf2-b2f5-620025690913/catalyst-accelerator-for-healthcare/). It provides organizations with connectivity assets that accelerate project delivery in healthcare, including pre-built API designs and implementations that support core healthcare business processes. Contact [info@mulesoft.com](mailto:info@mulesoft.com) for more information.
+## Accelerator for Healthcare
+This FHIR implementation is one of many components included in [Accelerator for Healthcare](/exchange/68ef9520-24e9-4cf2-b2f5-620025690913/catalyst-accelerator-for-healthcare/). This API provides organizations with connectivity assets that accelerate project delivery in healthcare, including pre-built API designs and implementations that support core healthcare business processes. Contact [info@mulesoft.com](mailto:info@mulesoft.com) for more information.
 
 # License Agreement
 
@@ -13,7 +13,7 @@ This template is subject to the conditions of the <a href="https://s3.amazonaws.
 
 # Use Case
 
-As a FitBit user I want a microservice to access data from the FitBit system and transform them to FHIR standard.
+As a FitBit user I want a microservice to access data from the FitBit system and transform the data to the FHIR standard.
 
 Healthcare Fitbit to FHIR System API is part of the Healthcare Templates Solution. This template calls FitBit API to retrieve required data from the FitBit system and transforms them to JSON following the FHIR specification [version 3.0.1 STU3](https://www.hl7.org/FHIR/index.html).
 
@@ -60,7 +60,7 @@ In Studio, click the Exchange X icon in the upper left of the taskbar, log in wi
 
 After you import the Template into Anypoint Studio, to follow these steps to run it:
 
-1. Generate a keystore and set up the truststore (you can find a detailed description on how to do so in [TLS Configuration](https://docs.mulesoft.com/mule4-user-guide/v/4.1/tls-configuration#keystores-and-truststores)).
+1. Generate a keystore and set up the truststore (you can find a detailed description on how to do so in [TLS Configuration](https://docs.mulesoft.com/mule-runtime/4.2/tls-configuration#keystores-and-truststores)).
 2. Locate the properties file `mule.dev.properties`, in src/main/resources.
 3. Complete all the properties required as per the examples in "Properties to Configure".
 4. Right click your template project folder.
